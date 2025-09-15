@@ -1,15 +1,8 @@
-
-const { createClient } = require('@supabase/supabase-js');
 const Entity = require('../models/Entity');
-
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.VITE_SUPABASE_ANON_KEY
-);
 
 exports.submitCoin = async (req, res) => {
   try {
+    const supabase = req.supabase; // Use the Supabase client from req
     const {
       name = '',
       symbol = '',
@@ -250,6 +243,7 @@ exports.unpromoteCoin = async (req, res) => {
 
 exports.editCoin = async (req, res) => {
   try {
+    const supabase = req.supabase; // Use the Supabase client from req
     const { id } = req.params;
     const updatedData = req.body;
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Editing coin:`, id, updatedData);
@@ -399,6 +393,7 @@ exports.getPresaleCoins = async (req, res) => {
 
 exports.uploadBanner = async (req, res) => {
   try {
+    const supabase = req.supabase; // Use the Supabase client from req
     const { bannerUrl } = req.body;
     if (!bannerUrl) {
       return res.status(400).json({ message: 'No banner URL provided' });
@@ -432,6 +427,7 @@ exports.uploadBanner = async (req, res) => {
 
 exports.deleteBanner = async (req, res) => {
   try {
+    const supabase = req.supabase; // Use the Supabase client from req
     const { filename } = req.params;
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Deleting banner:`, filename);
     const banner = await Entity.Banner.findOne({ filename });
