@@ -153,12 +153,20 @@ app.get('/api/news', async (req, res) => {
 });
 
 // Health check endpoint
+// Health check endpoint with more detailed info
 app.get('/api/health', (req, res) => {
+  const netlify = process.env.NETLIFY ? 'Yes' : 'No';
+  const functionRegion = process.env.AWS_REGION || 'Unknown';
+  
   res.status(200).json({ 
     status: 'OK', 
     timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' }),
     mongodbConnected: mongoConnected,
-    supabaseConnected: !!supabase
+    supabaseConnected: !!supabase,
+    environment: process.env.NODE_ENV || 'development',
+    runningOnNetlify: netlify,
+    region: functionRegion,
+    requestHeaders: req.headers
   });
 });
 
