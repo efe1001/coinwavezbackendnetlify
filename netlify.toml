@@ -1,21 +1,4 @@
-[build]
-  functions = "."  # Point to root directory where server.js is located
-
-[functions]
-  external_node_modules = ["express", "mongoose", "bcryptjs", "jsonwebtoken", "cors", "dotenv", "firebase-admin", "multer", "node-fetch", "serverless-http"]
-  node_bundler = "esbuild"
-
 [[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/index/:splat"  # Point to server.js
-  status = 200
-
-[[redirects]]
-  from = "/uploads/*"
-  to = "/.netlify/functions/index/:splat"  # Point to server.js
-  status = 200
-
-[[redirects]]
-  from = "/"
-  to = "/.netlify/functions/index"  # Redirect root to server.js
+  from = "/*"
+  to = "/.netlify/functions/index/:splat"
   status = 200
