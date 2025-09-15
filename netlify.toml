@@ -1,19 +1,21 @@
 [build]
-  command = "npm install"
-  publish = "."
+  functions = "."  # Point to root directory where index.js is located
 
-[build.environment]
-  NODE_VERSION = "18"
+[functions]
+  external_node_modules = ["express", "mongoose", "bcryptjs", "jsonwebtoken", "cors", "dotenv", "firebase-admin", "multer", "node-fetch", "indexless-http"]
+  node_bundler = "esbuild"
 
 [[redirects]]
   from = "/api/*"
-  to = "/.netlify/functions/api/:splat"
+  to = "/.netlify/functions/index/:splat"  # Point to index.js
   status = 200
 
 [[redirects]]
-  from = "/*"
-  to = "/index.html"
+  from = "/uploads/*"
+  to = "/.netlify/functions/index/:splat"  # Point to index.js
   status = 200
 
-[functions]
-  node_bundler = "esbuild"
+[[redirects]]
+  from = "/"
+  to = "/.netlify/functions/index"  # Redirect root to index.js
+  status = 200
