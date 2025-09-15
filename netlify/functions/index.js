@@ -5,21 +5,22 @@ const mongoose = require('mongoose');
 const { createClient } = require('@supabase/supabase-js');
 const fetch = require('node-fetch');
 const serverless = require('serverless-http');
+const path = require('path');
 
-// Load route files with error handling
+// Load route files with error handling - use absolute paths
 let authRoutes, coinRoutes, paymentRoutes;
 try {
-  authRoutes = require('../routes/authRoutes');
+  authRoutes = require(path.join(__dirname, '../../routes/authRoutes'));
 } catch (e) {
   console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Failed to load authRoutes:`, e.message);
 }
 try {
-  coinRoutes = require('../routes/coinRoutes');
+  coinRoutes = require(path.join(__dirname, '../../routes/coinRoutes'));
 } catch (e) {
   console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Failed to load coinRoutes:`, e.message);
 }
 try {
-  paymentRoutes = require('../routes/paymentRoutes');
+  paymentRoutes = require(path.join(__dirname, '../../routes/paymentRoutes'));
 } catch (e) {
   console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Failed to load paymentRoutes:`, e.message);
 }
