@@ -5,9 +5,13 @@
 [build.environment]
   NODE_VERSION = "18"
 
+# Remove the external_node_modules from functions section
+# and use node_bundle with the correct syntax
+
 [functions]
-  node_bundle = true
-  external_node_modules = ["mongoose", "mongodb", "express", "cors", "dotenv", "@supabase/supabase-js", "node-fetch", "serverless-http"]
+  # Correct node_bundle syntax
+  [functions.node_bundle]
+    external_node_modules = ["mongoose", "mongodb", "express", "cors", "dotenv", "@supabase/supabase-js", "node-fetch", "serverless-http"]
 
 # Redirect all API requests to the serverless function
 [[redirects]]
