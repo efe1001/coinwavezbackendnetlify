@@ -9,12 +9,7 @@
   "scripts": {
     "start": "nodemon index.js --ignore db.json --ignore Uploads/"
   },
-  {
-  "scripts": {
-    "build:netlify": "npm install && node scripts/copy-files.js",
-    "dev": "node server.js"
-  }
-}
+  
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
     "axios": "^1.12.0",
