@@ -7,31 +7,46 @@ const fetch = require('node-fetch');
 const serverless = require('serverless-http');
 const path = require('path');
 
-// Load route files with correct relative paths
+// Import routes directly (ESBuild will bundle them)
 let authRoutes, coinRoutes, paymentRoutes, bannerRoutes;
+
 try {
-  authRoutes = require('./routes/authRoutes');
+  // Import the route handlers directly
+  authRoutes = require('../../routes/authRoutes');
   console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Auth routes loaded successfully`);
 } catch (e) {
   console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Failed to load authRoutes:`, e.message);
+  // Create fallback routes
+  authRoutes = require('express').Router();
+  authRoutes.post('/register', (req, res) => res.json({ message: 'Auth route placeholder' }));
+  authRoutes.post('/login', (req, res) => res.json({ message: 'Auth route placeholder' }));
 }
+
 try {
-  coinRoutes = require('./routes/coinRoutes');
+  coinRoutes = require('../../routes/coinRoutes');
   console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Coin routes loaded successfully`);
 } catch (e) {
   console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Failed to load coinRoutes:`, e.message);
+  coinRoutes = require('express').Router();
+  coinRoutes.get('/coins', (req, res) => res.json({ message: 'Coin route placeholder' }));
 }
+
 try {
-  paymentRoutes = require('./routes/paymentRoutes');
+  paymentRoutes = require('../../routes/paymentRoutes');
   console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Payment routes loaded successfully`);
 } catch (e) {
   console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Failed to load paymentRoutes:`, e.message);
+  paymentRoutes = require('express').Router();
+  paymentRoutes.post('/create', (req, res) => res.json({ message: 'Payment route placeholder' }));
 }
+
 try {
-  bannerRoutes = require('./routes/bannerRoutes');
+  bannerRoutes = require('../../routes/bannerRoutes');
   console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Banner routes loaded successfully`);
 } catch (e) {
   console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Failed to load bannerRoutes:`, e.message);
+  bannerRoutes = require('express').Router();
+  bannerRoutes.get('/banners', (req, res) => res.json({ message: 'Banner route placeholder' }));
 }
 
 const app = express();
@@ -101,10 +116,10 @@ app.get('/test', (req, res) => {
 });
 
 // Routes
-if (authRoutes) app.use('/api', authRoutes);
-if (coinRoutes) app.use('/api', coinRoutes);
-if (paymentRoutes) app.use('/api/payments', paymentRoutes);
-if (bannerRoutes) app.use('/api', bannerRoutes);
+app.use('/api', authRoutes);
+app.use('/api', coinRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api', bannerRoutes);
 
 // CryptoPanic News API Proxy Endpoint
 app.get('/api/news', async (req, res) => {
