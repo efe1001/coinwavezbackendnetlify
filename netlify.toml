@@ -1,8 +1,17 @@
 [build]
-  functions = "coinbackend"
-  publish = "build"  # Now this exists
+  functions = "."
+  publish = "."  # Use current directory instead of build
 
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/index/:splat"
   status = 200
+
+[[redirects]]
+  from = "/"
+  to = "/.netlify/functions/index/api/health"
+  status = 200
+
+# Force no processing
+[build.processing]
+  skip_processing = true
