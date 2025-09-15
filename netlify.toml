@@ -1,10 +1,6 @@
 [build]
   functions = "coinbackend"
-  publish = "."  # Force current directory
-
-# Disable build processing completely
-[build.processing]
-  skip_processing = true
+  publish = "build"  # Now this directory exists
 
 [[redirects]]
   from = "/api/*"
@@ -15,9 +11,3 @@
   from = "/"
   to = "/.netlify/functions/index/api/health"
   status = 200
-
-# Add this to handle any caching issues
-[[headers]]
-  for = "/*"
-  [headers.values]
-    Cache-Control = "no-cache, no-store, must-revalidate"
