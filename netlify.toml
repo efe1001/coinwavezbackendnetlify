@@ -1,34 +1,15 @@
 [build]
-  publish = "build"  # React's build folder
-  functions = "coinbackend"  # Your functions directory
+  functions = "coinbackend"
+  # Remove or comment out the publish line since you don't have a frontend
+  # publish = "build"
 
-# Serve React app for all non-API routes
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-
-# Redirect API requests to your serverless function
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/index/:splat"
   status = 200
 
-# Handle SPA routing - redirect all non-file requests to index.html
+# Add a simple redirect for the root path
 [[redirects]]
-  from = "/**"
-  to = "/index.html"
+  from = "/"
+  to = "/.netlify/functions/index"
   status = 200
-
-# Optional: Header settings for security and SPA
-[[headers]]
-  for = "/*"
-  [headers.values]
-    X-Frame-Options = "DENY"
-    X-XSS-Protection = "1; mode=block"
-    X-Content-Type-Options = "nosniff"
-
-[[headers]]
-  for = "/assets/*"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
