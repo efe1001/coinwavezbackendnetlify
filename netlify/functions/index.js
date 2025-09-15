@@ -7,28 +7,28 @@ const fetch = require('node-fetch');
 const serverless = require('serverless-http');
 const path = require('path');
 
-// Load route files with error handling - use absolute paths
+// Load route files with correct relative paths
 let authRoutes, coinRoutes, paymentRoutes, bannerRoutes;
 try {
-  authRoutes = require(path.join(process.cwd(), 'routes', 'authRoutes'));
+  authRoutes = require('./routes/authRoutes');
   console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Auth routes loaded successfully`);
 } catch (e) {
   console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Failed to load authRoutes:`, e.message);
 }
 try {
-  coinRoutes = require(path.join(process.cwd(), 'routes', 'coinRoutes'));
+  coinRoutes = require('./routes/coinRoutes');
   console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Coin routes loaded successfully`);
 } catch (e) {
   console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Failed to load coinRoutes:`, e.message);
 }
 try {
-  paymentRoutes = require(path.join(process.cwd(), 'routes', 'paymentRoutes'));
+  paymentRoutes = require('./routes/paymentRoutes');
   console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Payment routes loaded successfully`);
 } catch (e) {
   console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Failed to load paymentRoutes:`, e.message);
 }
 try {
-  bannerRoutes = require(path.join(process.cwd(), 'routes', 'bannerRoutes'));
+  bannerRoutes = require('./routes/bannerRoutes');
   console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Banner routes loaded successfully`);
 } catch (e) {
   console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Failed to load bannerRoutes:`, e.message);
