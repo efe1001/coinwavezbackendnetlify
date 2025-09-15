@@ -1,16 +1,13 @@
 [build]
-  command = "npm install"
-  functions = "netlify/functions"
-  publish = "public"
-
-[[headers]]
-  for = "/*"
-  [headers.values]
-    Access-Control-Allow-Origin = "https://coinwavezfrontend.netlify.app"
-    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
-    Access-Control-Allow-Headers = "Content-Type, Authorization"
+  functions = "coinbackend"
+  publish = "build"  # Now this directory exists
 
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/index/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/"
+  to = "/.netlify/functions/index/api/health"
   status = 200
