@@ -5,78 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CoinWaveZ Backend API - Debug</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 1000px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #333;
-            border-bottom: 2px solid #007acc;
-            padding-bottom: 10px;
-        }
-        h2 {
-            color: #444;
-            margin-top: 25px;
-        }
-        .status {
-            padding: 12px;
-            border-radius: 6px;
-            margin: 10px 0;
-            font-weight: bold;
-        }
-        .connected {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        .disconnected {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        .testing {
-            background: #fff3cd;
-            color: #856404;
-            border: 1px solid #ffeeba;
-        }
-        .btn {
-            background: #007acc;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            margin: 5px;
-        }
-        .btn:hover {
-            background: #005a9e;
-        }
-        .json-view {
-            background: #f8f9fa;
-            padding: 10px;
-            border-radius: 4px;
-            border: 1px solid #e9ecef;
-            max-height: 300px;
-            overflow: auto;
-            font-family: monospace;
-            font-size: 12px;
-        }
-        .debug-info {
-            background: #e9ecef;
-            padding: 15px;
-            border-radius: 6px;
-            margin: 15px 0;
-        }
+        body { font-family: Arial, sans-serif; max-width: 1000px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
+        .container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #333; border-bottom: 2px solid #007acc; padding-bottom: 10px; }
+        .status { padding: 12px; border-radius: 6px; margin: 10px 0; font-weight: bold; }
+        .disconnected { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .btn { background: #007acc; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; margin: 5px; }
+        .json-view { background: #f8f9fa; padding: 10px; border-radius: 4px; border: 1px solid #e9ecef; font-family: monospace; font-size: 12px; }
+        .debug-info { background: #e9ecef; padding: 15px; border-radius: 6px; margin: 15px 0; }
+        .error { color: #dc3545; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -84,99 +21,97 @@
         <h1>CoinWaveZ Backend API - Debug Mode</h1>
         
         <div class="debug-info">
-            <h2>🚨 Deployment Issue Detected</h2>
-            <p>Your API endpoints are returning 404 errors. This usually means:</p>
+            <h2>🚨 CRITICAL ISSUE: Function Not Deployed</h2>
+            <p class="error">Netlify cannot find your serverless function. This means:</p>
             <ol>
-                <li>Serverless function is not properly configured</li>
-                <li>Environment variables are missing</li>
-                <li>There's an error in your function code</li>
+                <li>Your functions folder doesn't exist in the repository</li>
+                <li>There's an error in your netlify.toml configuration</li>
+                <li>The build failed to deploy your functions</li>
             </ol>
         </div>
 
-        <h2>Quick Tests:</h2>
-        <button class="btn" onclick="testDirectFunction()">Test Direct Function URL</button>
-        <button class="btn" onclick="testNetlifyConfig()">Test Netlify Configuration</button>
-        
+        <h2>Immediate Actions:</h2>
+        <ol>
+            <li>Check that your <code>functions</code> folder exists and is committed to Git</li>
+            <li>Verify your <code>netlify.toml</code> has <code>functions = "functions"</code></li>
+            <li>Check Netlify build logs for errors</li>
+            <li>Make sure your <code>functions/api.js</code> file exists</li>
+        </ol>
+
         <h2>Test Results:</h2>
         <div id="test-results" class="json-view">Run tests to see results...</div>
         
-        <h2>Next Steps:</h2>
-        <ol>
-            <li>Check Netlify Function logs in your dashboard</li>
-            <li>Verify all environment variables are set</li>
-            <li>Ensure your functions/api.js file exists</li>
-            <li>Check that all dependencies are in package.json</li>
-        </ol>
+        <button class="btn" onclick="testDirectFunction()">Test API Function</button>
+        <button class="btn" onclick="testSimpleFunction()">Test Simple Function</button>
+        <button class="btn" onclick="checkBuildLogs()">Check Build Status</button>
 
-        <h2>Environment Information:</h2>
-        <div id="env-info" class="json-view">Loading environment info...</div>
+        <h2>Project Structure Should Be:</h2>
+        <div class="json-view">
+📁 coinbackend/
+├── 📁 functions/
+│   └── 📄 api.js
+├── 📄 index.js
+├── 📄 index.html
+├── 📄 netlify.toml
+├── 📄 package.json
+└── 📄 .env (not committed)
+        </div>
     </div>
 
     <script>
-        // Display environment info
-        document.getElementById('env-info').textContent = JSON.stringify({
-            userAgent: navigator.userAgent,
-            location: window.location.href,
-            timestamp: new Date().toISOString(),
-            netlifySite: window.location.hostname
-        }, null, 2);
-
         // Test direct function URL
         async function testDirectFunction() {
             const testResults = document.getElementById('test-results');
-            testResults.textContent = "Testing direct function URL...";
+            testResults.textContent = "Testing /netlify/functions/api/health...";
             
             try {
                 const response = await fetch('/.netlify/functions/api/health');
                 const text = await response.text();
                 
-                let data;
-                try {
-                    data = JSON.parse(text);
-                } catch (e) {
-                    data = { rawResponse: text.substring(0, 200) + "..." };
-                }
-                
                 testResults.textContent = JSON.stringify({
                     url: '/.netlify/functions/api/health',
                     status: response.status,
                     statusText: response.statusText,
-                    response: data
+                    response: text.substring(0, 200) + (text.length > 200 ? "..." : "")
                 }, null, 2);
             } catch (error) {
                 testResults.textContent = JSON.stringify({
                     error: error.message,
-                    suggestion: "Serverless function may not be deployed correctly. Check Netlify function logs."
+                    suggestion: "FUNCTION DOES NOT EXIST. Check if functions folder is deployed."
                 }, null, 2);
             }
         }
 
-        // Test Netlify configuration
-        async function testNetlifyConfig() {
+        // Test simple function
+        async function testSimpleFunction() {
             const testResults = document.getElementById('test-results');
-            testResults.textContent = "Testing Netlify configuration...";
+            testResults.textContent = "Testing /netlify/functions/test...";
             
             try {
-                // Test if the functions directory exists
-                const response = await fetch('/.netlify/functions/', {
-                    method: 'HEAD'
-                });
+                const response = await fetch('/.netlify/functions/test');
+                const text = await response.text();
                 
                 testResults.textContent = JSON.stringify({
-                    test: "Functions directory access",
+                    url: '/.netlify/functions/test',
                     status: response.status,
                     statusText: response.statusText,
-                    exists: response.status !== 404
+                    response: text.substring(0, 200) + (text.length > 200 ? "..." : "")
                 }, null, 2);
             } catch (error) {
                 testResults.textContent = JSON.stringify({
                     error: error.message,
-                    suggestion: "Netlify functions may not be configured properly."
+                    suggestion: "No functions are deployed. Check Netlify build logs."
                 }, null, 2);
             }
         }
 
-        // Run initial tests
+        // Check build status
+        async function checkBuildLogs() {
+            const testResults = document.getElementById('test-results');
+            testResults.textContent = "Cannot access build logs directly. Please:\n1. Go to Netlify dashboard\n2. Select your site\n3. Click on 'Deploys'\n4. Check the latest build logs for errors";
+        }
+
+        // Run initial test
         setTimeout(testDirectFunction, 1000);
     </script>
 </body>
