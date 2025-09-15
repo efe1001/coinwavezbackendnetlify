@@ -8,46 +8,71 @@ const serverless = require('serverless-http');
 const path = require('path');
 
 // Load route files with error handling - use absolute paths
-let authRoutes, coinRoutes, paymentRoutes;
+let authRoutes, coinRoutes, paymentRoutes, bannerRoutes;
 try {
-  authRoutes = require(path.join(__dirname, '../../routes/authRoutes'));
+  authRoutes = require(path.join(process.cwd(), 'routes', 'authRoutes'));
+  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Auth routes loaded successfully`);
 } catch (e) {
   console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Failed to load authRoutes:`, e.message);
 }
 try {
-  coinRoutes = require(path.join(__dirname, '../../routes/coinRoutes'));
+  coinRoutes = require(path.join(process.cwd(), 'routes', 'coinRoutes'));
+  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Coin routes loaded successfully`);
 } catch (e) {
   console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Failed to load coinRoutes:`, e.message);
 }
 try {
-  paymentRoutes = require(path.join(__dirname, '../../routes/paymentRoutes'));
+  paymentRoutes = require(path.join(process.cwd(), 'routes', 'paymentRoutes'));
+  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Payment routes loaded successfully`);
 } catch (e) {
   console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Failed to load paymentRoutes:`, e.message);
+}
+try {
+  bannerRoutes = require(path.join(process.cwd(), 'routes', 'bannerRoutes'));
+  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Banner routes loaded successfully`);
+} catch (e) {
+  console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Failed to load bannerRoutes:`, e.message);
 }
 
 const app = express();
 
 // Debug environment variables
-console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] SUPABASE_URL:`, process.env.SUPABASE_URL);
-console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] CRYPTO_PANIC_API_KEY:`, process.env.CRYPTO_PANIC_API_KEY ? 'Present' : 'Missing');
+console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] SUPABASE_URL:`, process.env.SUPABASE_URL ? "Present" : "Missing");
+console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MONGODB_URI:`, process.env.MONGODB_URI ? "Present" : "Missing");
+console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] CRYPTO_PANIC_API_KEY:`, process.env.CRYPTO_PANIC_API_KEY ? "Present" : "Missing");
 
 // Initialize Supabase client
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
-if (!supabaseUrl || !supabaseAnonKey) {
+let supabase;
+let supabaseConnected = false;
+
+if (supabaseUrl && supabaseAnonKey) {
+  supabase = createClient(supabaseUrl, supabaseAnonKey);
+  supabaseConnected = true;
+  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Supabase connected successfully`);
+} else {
   console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Supabase configuration error: Missing SUPABASE_URL or SUPABASE_ANON_KEY`);
-  throw new Error('Supabase configuration is incomplete. Check your .env file.');
 }
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB connected`))
-  .catch(err => console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB connection error:`, err));
+let mongodbConnected = false;
+if (process.env.MONGODB_URI) {
+  mongoose.connect(process.env.MONGODB_URI)
+    .then(() => {
+      mongodbConnected = true;
+      console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB connected successfully`);
+    })
+    .catch(err => {
+      console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB connection error:`, err.message);
+    });
+} else {
+  console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB URI is missing`);
+}
 
 // Middleware
 app.use(cors({
-  origin: 'https://coinwavezfrontend.netlify.app',
+  origin: ['https://coinwavezfrontend.netlify.app', 'http://localhost:3000'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
@@ -56,30 +81,41 @@ app.use(express.urlencoded({ extended: true, limit: '1gb' }));
 
 // Attach supabase client to req
 app.use((req, res, next) => {
-  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Request received: ${req.method} ${req.url} from ${req.headers.origin}`);
-  req.supabase = supabase;
+  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Request received: ${req.method} ${req.url}`);
+  if (supabase) {
+    req.supabase = supabase;
+  }
   next();
 });
 
 // Debug endpoint
 app.get('/test', (req, res) => {
-  res.json({ message: 'Serverless function is running', timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' }) });
+  res.json({ 
+    message: 'Serverless function is running', 
+    timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' }),
+    connections: {
+      mongodb: mongodbConnected ? "Connected" : "Not connected",
+      supabase: supabaseConnected ? "Connected" : "Not connected"
+    }
+  });
 });
 
 // Routes
 if (authRoutes) app.use('/api', authRoutes);
 if (coinRoutes) app.use('/api', coinRoutes);
 if (paymentRoutes) app.use('/api/payments', paymentRoutes);
+if (bannerRoutes) app.use('/api', bannerRoutes);
 
 // CryptoPanic News API Proxy Endpoint
 app.get('/api/news', async (req, res) => {
-  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] /api/news request received from:`, req.headers.origin);
+  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] /api/news request received`);
   try {
     const API_KEY = process.env.CRYPTO_PANIC_API_KEY || null;
     if (!API_KEY) {
       console.warn(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] CRYPTO_PANIC_API_KEY missing, returning fallback data`);
       throw new Error('Missing CRYPTO_PANIC_API_KEY');
     }
+    
     const { kind = 'news', currencies, region, filter = 'rising' } = req.query;
     
     let apiUrl = `https://cryptopanic.com/api/v1/posts/?auth_token=${API_KEY}&kind=${kind}&filter=${filter}`;
@@ -123,7 +159,7 @@ app.get('/api/news', async (req, res) => {
     
     res.status(200).json({ results: enhancedResults });
   } catch (error) {
-    console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Error fetching news:`, error);
+    console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Error fetching news:`, error.message);
     res.status(200).json({ 
       results: [
         {
@@ -141,30 +177,6 @@ app.get('/api/news', async (req, res) => {
           url: "https://cryptopanic.com/news/2",
           source: { title: "CoinDesk" },
           preview: "The long-awaited Ethereum 2.0 upgrade is set to launch in December, bringing proof-of-stake consensus and scalability improvements."
-        },
-        {
-          id: 3,
-          title: "Solana Outage Highlights Blockchain Scalability Challenges",
-          published_at: new Date().toISOString(),
-          url: "https://cryptopanic.com/news/3",
-          source: { title: "Decrypt" },
-          preview: "The Solana network experienced a significant outage yesterday, raising questions about the scalability of high-throughput blockchains."
-        },
-        {
-          id: 4,
-          title: "NFT Market Sees Record Sales Despite Crypto Winter",
-          published_at: new Date().toISOString(),
-          url: "https://cryptopanic.com/news/4",
-          source: { title: "The Block" },
-          preview: "Non-fungible token sales have reached record levels this month, with several high-profile collections selling for millions."
-        },
-        {
-          id: 5,
-          title: "Central Banks Exploring CBDCs as Crypto Adoption Grows",
-          published_at: new Date().toISOString(),
-          url: "https://cryptopanic.com/news/5",
-          source: { title: "Reuters" },
-          preview: "Central banks worldwide are accelerating their research into central bank digital currencies (CBDCs) as cryptocurrency adoption grows."
         }
       ]
     });
@@ -173,12 +185,22 @@ app.get('/api/news', async (req, res) => {
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] /api/health request received from:`, req.headers.origin);
+  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] /api/health request received`);
   res.status(200).json({ 
     status: 'OK', 
     timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' }),
-    mongodbConnected: mongoose.connection.readyState === 1,
-    supabaseConnected: !!supabase
+    connections: {
+      mongodb: mongodbConnected ? "Connected" : "Not connected",
+      supabase: supabaseConnected ? "Connected" : "Not connected"
+    }
+  });
+});
+
+// 404 handler for API routes
+app.use('/api/*', (req, res) => {
+  res.status(404).json({ 
+    message: 'API endpoint not found',
+    path: req.originalUrl
   });
 });
 
@@ -186,7 +208,6 @@ app.get('/api/health', (req, res) => {
 app.use((err, req, res, next) => {
   console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Server error:`, {
     message: err.message,
-    stack: err.stack,
     path: req.path
   });
   
