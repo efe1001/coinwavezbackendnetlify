@@ -7,7 +7,7 @@ const fetch = require('node-fetch');
 const serverless = require('serverless-http');
 
 // Load route files with error handling
-let authRoutes, coinRoutes, paymentRoutes, bannerRoutes;
+let authRoutes, coinRoutes, paymentRoutes;
 try {
   authRoutes = require('../routes/authRoutes');
 } catch (e) {
@@ -22,11 +22,6 @@ try {
   paymentRoutes = require('../routes/paymentRoutes');
 } catch (e) {
   console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Failed to load paymentRoutes:`, e.message);
-}
-try {
-  bannerRoutes = require('../routes/bannerRoutes');
-} catch (e) {
-  console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Failed to load bannerRoutes:`, e.message);
 }
 
 const app = express();
@@ -74,7 +69,6 @@ app.get('/test', (req, res) => {
 if (authRoutes) app.use('/api', authRoutes);
 if (coinRoutes) app.use('/api', coinRoutes);
 if (paymentRoutes) app.use('/api/payments', paymentRoutes);
-if (bannerRoutes) app.use('/api/banners', bannerRoutes);
 
 // CryptoPanic News API Proxy Endpoint
 app.get('/api/news', async (req, res) => {
