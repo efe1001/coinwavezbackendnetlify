@@ -13,10 +13,10 @@ const serverless = require('serverless-http');
 const app = express();
 
 // Initialize Supabase client
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.VITE_SUPABASE_URL; // Match .env
+const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Supabase configuration error: Missing SUPABASE_URL or SUPABASE_ANON_KEY`);
+  console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Supabase configuration error: Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY`);
   throw new Error('Supabase configuration is incomplete. Check your .env file.');
 }
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -31,6 +31,11 @@ app.use(cors());
 app.use(express.json({ limit: '1gb' }));
 app.use(express.urlencoded({ extended: true, limit: '1gb' }));
 
+// Debug endpoint
+app.get('/test', (req, res) => {
+  res.json({ message: 'Serverless function is running', timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' }) });
+});
+
 // Routes
 app.use('/api', authRoutes);
 app.use('/api', coinRoutes);
@@ -41,9 +46,10 @@ app.use('/api/banners', bannerRoutes);
 app.get('/api/news', async (req, res) => {
   console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Fetching news from CryptoPanic`);
   try {
-    const API_KEY = process.env.CRYPTO_PANIC_API_KEY;
+    const API_KEY = process.env.CRYPTO_PANIC_API_KEY || null;
     if (!API_KEY) {
-      throw new Error('Missing CRYPTO_PANIC_API_KEY in environment variables');
+      console.warn(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] CRYPTO_PANIC_API_KEY missing, returning fallback data`);
+      throw new Error('Missing CRYPTO_PANIC_API_KEY');
     }
     const { kind = 'news', currencies, region, filter = 'rising' } = req.query;
     
