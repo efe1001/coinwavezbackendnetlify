@@ -1,15 +1,6 @@
 [build]
   functions = "."
-  # Explicitly set publish to empty or current directory
-  publish = "."
-
-# Disable any automatic build commands
-[build.environment]
-  NODE_ENV = "production"
-
-# Force no build process
-[build.processing]
-  skip_processing = true
+  publish = "build"  # Now it exists, even if empty
 
 [[redirects]]
   from = "/api/*"
@@ -19,9 +10,4 @@
 [[redirects]]
   from = "/"
   to = "/.netlify/functions/index/api/health"
-  status = 200
-
-[[redirects]]
-  from = "/*"
-  to = "/.netlify/functions/index"
   status = 200
