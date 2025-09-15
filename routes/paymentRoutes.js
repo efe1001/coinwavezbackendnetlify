@@ -120,7 +120,7 @@ router.post('/create-charge', async (req, res) => {
     if (error.response?.status === 401) {
       return res.status(401).json({
         error: 'Invalid API key',
-        message: 'The Coinbase Commerce API key is invalid or has been revoked. Please ensure you’re using the full secret key.',
+        message: 'The Coinbase Commerce API key is invalid or has been revoked. Please ensure you\'re using the full secret key.',
         details: error.response?.data || 'No additional details'
       });
     } else if (error.response?.status === 403) {
