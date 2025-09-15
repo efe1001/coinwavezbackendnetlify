@@ -1,28 +1,20 @@
 [build]
-  publish = "."
+  publish = "." # This is fine for backend-only
   functions = "functions"
 
 [build.environment]
   NODE_VERSION = "18"
 
-# Remove the external_node_modules from functions section
-# and use node_bundle with the correct syntax
-
-[functions]
-  # Correct node_bundle syntax
-  [functions.node_bundle]
-    external_node_modules = ["mongoose", "mongodb", "express", "cors", "dotenv", "@supabase/supabase-js", "node-fetch", "serverless-http"]
-
-# Redirect all API requests to the serverless function
+# Remove the SPA redirect that's causing issues
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
   status = 200
 
-# For SPA routing - redirect all non-API requests to index.html
+# Add a custom 404 page for API routes
 [[redirects]]
   from = "/*"
-  to = "/index.html"
+  to = "/.netlify/functions/api/"
   status = 200
 
 # Handle preflight requests for CORS
@@ -32,12 +24,3 @@
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Headers = "Content-Type, Authorization"
     Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
-
-# Security headers for all responses
-[[headers]]
-  for = "/*"
-  [headers.values]
-    X-Frame-Options = "DENY"
-    X-XSS-Protection = "1; mode=block"
-    X-Content-Type-Options = "nosniff"
-    Referrer-Policy = "strict-origin-when-cross-origin"
