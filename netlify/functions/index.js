@@ -27,9 +27,24 @@ mongoose.connect(process.env.MONGODB_URI)
   .catch(err => console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB connection error:`, err));
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: 'https://coinwavezfrontend.netlify.app',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 app.use(express.json({ limit: '1gb' }));
 app.use(express.urlencoded({ extended: true, limit: '1gb' }));
+
+// Debug endpoint
+app.get('/test', (req, res) => {
+  res.json({ message: 'Serverless function is running', timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' }) });
+});
+
+// Pass supabase client to routes
+app.use((req, res, next) => {
+  req.supabase = supabase; // Attach supabase client to req object
+  next();
+});
 
 // Routes
 app.use('/api', authRoutes);
@@ -41,9 +56,10 @@ app.use('/api/banners', bannerRoutes);
 app.get('/api/news', async (req, res) => {
   console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Fetching news from CryptoPanic`);
   try {
-    const API_KEY = process.env.CRYPTO_PANIC_API_KEY;
+    const API_KEY = process.env.CRYPTO_PANIC_API_KEY || null;
     if (!API_KEY) {
-      throw new Error('Missing CRYPTO_PANIC_API_KEY in environment variables');
+      console.warn(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] CRYPTO_PANIC_API_KEY missing, returning fallback data`);
+      throw new Error('Missing CRYPTO_PANIC_API_KEY');
     }
     const { kind = 'news', currencies, region, filter = 'rising' } = req.query;
     
@@ -156,3 +172,4 @@ app.use((err, req, res, next) => {
 });
 
 module.exports.handler = serverless(app);
+module.exports.supabase = supabase; // Export supabase client for use in other modules
