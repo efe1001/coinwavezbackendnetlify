@@ -9,7 +9,6 @@ const paymentRoutes = require('./routes/paymentRoutes');
 const bannerRoutes = require('./routes/bannerRoutes');
 const fetch = require('node-fetch');
 const serverless = require('serverless-http');
-const path = require('path');
 
 const app = express();
 
@@ -27,29 +26,10 @@ mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB connected`))
   .catch(err => console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB connection error:`, err));
 
-// Enhanced CORS configuration
-const corsOptions = {
-  origin: [
-    'https://coinwavezfrontend.netlify.app',
-    'http://localhost:3000',
-    'http://localhost:3001'
-  ],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  credentials: true,
-  optionsSuccessStatus: 200
-};
-
 // Middleware
-app.use(cors(corsOptions));
+app.use(cors());
 app.use(express.json({ limit: '1gb' }));
 app.use(express.urlencoded({ extended: true, limit: '1gb' }));
-
-// Handle preflight requests
-app.options('*', cors(corsOptions));
-
-// Serve static files from build directory
-app.use(express.static(path.join(__dirname, 'build')));
 
 // Debug endpoint
 app.get('/test', (req, res) => {
@@ -65,12 +45,6 @@ app.use('/api/banners', bannerRoutes);
 // CryptoPanic News API Proxy Endpoint
 app.get('/api/news', async (req, res) => {
   console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Fetching news from CryptoPanic`);
-  
-  // Set CORS headers specifically for this endpoint
-  res.header('Access-Control-Allow-Origin', 'https://coinwavezfrontend.netlify.app');
-  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  
   try {
     const API_KEY = process.env.CRYPTO_PANIC_API_KEY || null;
     if (!API_KEY) {
@@ -176,11 +150,6 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Serve React app for any other requests
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'build', 'index.html'));
-});
-
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Server error:`, {
@@ -193,3 +162,4 @@ app.use((err, req, res, next) => {
 });
 
 module.exports.handler = serverless(app);
+
