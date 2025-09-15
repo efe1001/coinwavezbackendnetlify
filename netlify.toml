@@ -1,26 +1,24 @@
 [build]
-  publish = "." # This is fine for backend-only
+  publish = "."
   functions = "functions"
 
 [build.environment]
   NODE_VERSION = "18"
 
-# Remove the SPA redirect that's causing issues
+# API routes - redirect to serverless function
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
   status = 200
 
-# Add a custom 404 page for API routes
+# Root path should show index.html
 [[redirects]]
-  from = "/*"
-  to = "/.netlify/functions/api/"
+  from = "/"
+  to = "/index.html"
   status = 200
 
-# Handle preflight requests for CORS
-[[headers]]
-  for = "/api/*"
-  [headers.values]
-    Access-Control-Allow-Origin = "*"
-    Access-Control-Allow-Headers = "Content-Type, Authorization"
-    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+# All other paths should go to API
+[[redirects]]
+  from = "/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 404
