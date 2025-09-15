@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CoinWaveZ Backend API</title>
+    <title>CoinWaveZ Backend API - Debug</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -27,14 +27,6 @@
             color: #444;
             margin-top: 25px;
         }
-        .endpoint {
-            background: #f9f9f9;
-            padding: 10px;
-            border-left: 4px solid #007acc;
-            margin: 10px 0;
-            font-family: monospace;
-            border-radius: 4px;
-        }
         .status {
             padding: 12px;
             border-radius: 6px;
@@ -56,13 +48,6 @@
             color: #856404;
             border: 1px solid #ffeeba;
         }
-        .test-result {
-            margin: 8px 0;
-            padding: 10px;
-            border-radius: 4px;
-            font-family: monospace;
-            font-size: 14px;
-        }
         .btn {
             background: #007acc;
             color: white;
@@ -76,12 +61,6 @@
         .btn:hover {
             background: #005a9e;
         }
-        .btn-test {
-            background: #28a745;
-        }
-        .btn-test:hover {
-            background: #218838;
-        }
         .json-view {
             background: #f8f9fa;
             padding: 10px;
@@ -92,207 +71,113 @@
             font-family: monospace;
             font-size: 12px;
         }
-        .hidden {
-            display: none;
-        }
-        .detail-section {
-            margin-top: 15px;
-            border-top: 1px solid #eee;
-            padding-top: 15px;
+        .debug-info {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>CoinWaveZ Backend API</h1>
-        <p>Your backend API is successfully deployed on Netlify!</p>
+        <h1>CoinWaveZ Backend API - Debug Mode</h1>
         
-        <h2>Available Endpoints:</h2>
-        <div class="endpoint">GET /api/health - Health check</div>
-        <div class="endpoint">GET /api/news - Crypto news</div>
-        <div class="endpoint">POST /api/auth/* - Authentication routes</div>
-        <div class="endpoint">GET /api/coins/* - Coin data routes</div>
-        <div class="endpoint">POST /api/payments/* - Payment processing</div>
-        <div class="endpoint">GET /api/banners/* - Banner management</div>
-        
-        <h2>Connection Status:</h2>
-        <div id="status" class="status testing">Testing connection...</div>
-        
-        <div class="detail-section">
-            <h2>API Test Results:</h2>
-            <button class="btn btn-test" onclick="testAllEndpoints()">Test All Endpoints</button>
-            <button class="btn" onclick="testHealth()">Test /api/health</button>
-            <button class="btn" onclick="testNews()">Test /api/news</button>
-            
-            <div id="test-results"></div>
+        <div class="debug-info">
+            <h2>🚨 Deployment Issue Detected</h2>
+            <p>Your API endpoints are returning 404 errors. This usually means:</p>
+            <ol>
+                <li>Serverless function is not properly configured</li>
+                <li>Environment variables are missing</li>
+                <li>There's an error in your function code</li>
+            </ol>
         </div>
+
+        <h2>Quick Tests:</h2>
+        <button class="btn" onclick="testDirectFunction()">Test Direct Function URL</button>
+        <button class="btn" onclick="testNetlifyConfig()">Test Netlify Configuration</button>
         
-        <div class="detail-section">
-            <h2>Direct Function URL Test:</h2>
-            <p>Test the serverless function directly (bypasses redirects):</p>
-            <button class="btn" onclick="testDirectFunction()">Test Direct Function URL</button>
-            <div id="direct-test-result"></div>
-        </div>
+        <h2>Test Results:</h2>
+        <div id="test-results" class="json-view">Run tests to see results...</div>
         
-        <div class="detail-section">
-            <h2>Environment Information:</h2>
-            <div id="env-info" class="json-view">Loading environment info...</div>
-        </div>
-        
-        <p>Use the endpoints above in your frontend application. If you encounter issues, check the Netlify function logs.</p>
+        <h2>Next Steps:</h2>
+        <ol>
+            <li>Check Netlify Function logs in your dashboard</li>
+            <li>Verify all environment variables are set</li>
+            <li>Ensure your functions/api.js file exists</li>
+            <li>Check that all dependencies are in package.json</li>
+        </ol>
+
+        <h2>Environment Information:</h2>
+        <div id="env-info" class="json-view">Loading environment info...</div>
     </div>
 
     <script>
-        // Display basic environment info
+        // Display environment info
         document.getElementById('env-info').textContent = JSON.stringify({
             userAgent: navigator.userAgent,
             location: window.location.href,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            netlifySite: window.location.hostname
         }, null, 2);
 
-        // Test all API endpoints
-        async function testEndpoint(endpoint, method = 'GET') {
-            const testResults = document.getElementById('test-results');
-            const resultDiv = document.createElement('div');
-            resultDiv.className = 'test-result testing';
-            resultDiv.innerHTML = `Testing ${method} ${endpoint}...`;
-            testResults.appendChild(resultDiv);
-            
-            try {
-                const startTime = Date.now();
-                const response = await fetch(endpoint, {
-                    method: method,
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                const endTime = Date.now();
-                const responseTime = endTime - startTime;
-                
-                let data;
-                try {
-                    data = await response.json();
-                } catch (e) {
-                    data = { error: 'Invalid JSON response' };
-                }
-                
-                resultDiv.className = response.ok ? 'test-result connected' : 'test-result disconnected';
-                resultDiv.innerHTML = `
-                    <strong>${response.ok ? '✅' : '❌'} ${method} ${endpoint}</strong><br>
-                    Status: ${response.status} ${response.statusText}<br>
-                    Response Time: ${responseTime}ms<br>
-                    <button class="btn" onclick="toggleJson('${endpoint}-data')">View Response</button>
-                    <div id="${endpoint}-data" class="json-view hidden">${JSON.stringify(data, null, 2)}</div>
-                `;
-                
-                return { success: response.ok, data };
-            } catch (error) {
-                resultDiv.className = 'test-result disconnected';
-                resultDiv.innerHTML = `
-                    <strong>❌ ${method} ${endpoint}</strong><br>
-                    Error: ${error.message}<br>
-                    Network connection failed
-                `;
-                return { success: false, error: error.message };
-            }
-        }
-
-        // Test all endpoints
-        async function testAllEndpoints() {
-            document.getElementById('test-results').innerHTML = '';
-            
-            const endpoints = [
-                { url: '/api/health', method: 'GET' },
-                { url: '/api/news', method: 'GET' }
-            ];
-            
-            for (const endpoint of endpoints) {
-                await testEndpoint(endpoint.url, endpoint.method);
-                // Add a small delay between tests
-                await new Promise(resolve => setTimeout(resolve, 500));
-            }
-        }
-
-        // Individual test functions
-        async function testHealth() {
-            document.getElementById('test-results').innerHTML = '';
-            await testEndpoint('/api/health', 'GET');
-        }
-
-        async function testNews() {
-            document.getElementById('test-results').innerHTML = '';
-            await testEndpoint('/api/news', 'GET');
-        }
-
-        // Test direct function URL (bypasses redirects)
+        // Test direct function URL
         async function testDirectFunction() {
-            const directTestResult = document.getElementById('direct-test-result');
-            directTestResult.innerHTML = '<div class="test-result testing">Testing direct function URL...</div>';
+            const testResults = document.getElementById('test-results');
+            testResults.textContent = "Testing direct function URL...";
             
             try {
                 const response = await fetch('/.netlify/functions/api/health');
-                const data = await response.json();
+                const text = await response.text();
                 
-                directTestResult.innerHTML = `
-                    <div class="test-result ${response.ok ? 'connected' : 'disconnected'}">
-                        <strong>Direct Function Test:</strong><br>
-                        URL: <code>/.netlify/functions/api/health</code><br>
-                        Status: ${response.status} ${response.statusText}<br>
-                        <button class="btn" onclick="toggleJson('direct-function-data')">View Response</button>
-                        <div id="direct-function-data" class="json-view">${JSON.stringify(data, null, 2)}</div>
-                    </div>
-                `;
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    data = { rawResponse: text.substring(0, 200) + "..." };
+                }
+                
+                testResults.textContent = JSON.stringify({
+                    url: '/.netlify/functions/api/health',
+                    status: response.status,
+                    statusText: response.statusText,
+                    response: data
+                }, null, 2);
             } catch (error) {
-                directTestResult.innerHTML = `
-                    <div class="test-result disconnected">
-                        <strong>Direct Function Test Failed:</strong><br>
-                        Error: ${error.message}<br>
-                        This suggests the serverless function may not be deployed correctly.
-                    </div>
-                `;
+                testResults.textContent = JSON.stringify({
+                    error: error.message,
+                    suggestion: "Serverless function may not be deployed correctly. Check Netlify function logs."
+                }, null, 2);
             }
         }
 
-        // Toggle JSON view
-        function toggleJson(id) {
-            const element = document.getElementById(id);
-            element.classList.toggle('hidden');
+        // Test Netlify configuration
+        async function testNetlifyConfig() {
+            const testResults = document.getElementById('test-results');
+            testResults.textContent = "Testing Netlify configuration...";
+            
+            try {
+                // Test if the functions directory exists
+                const response = await fetch('/.netlify/functions/', {
+                    method: 'HEAD'
+                });
+                
+                testResults.textContent = JSON.stringify({
+                    test: "Functions directory access",
+                    status: response.status,
+                    statusText: response.statusText,
+                    exists: response.status !== 404
+                }, null, 2);
+            } catch (error) {
+                testResults.textContent = JSON.stringify({
+                    error: error.message,
+                    suggestion: "Netlify functions may not be configured properly."
+                }, null, 2);
+            }
         }
 
-        // Check API health status on page load
-        fetch('/api/health')
-            .then(response => {
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                return response.json();
-            })
-            .then(data => {
-                const statusDiv = document.getElementById('status');
-                if (data.mongodbConnected) {
-                    statusDiv.className = 'status connected';
-                    statusDiv.innerHTML = '✅ MongoDB Connected Successfully';
-                } else {
-                    statusDiv.className = 'status disconnected';
-                    statusDiv.innerHTML = '❌ MongoDB Not Connected';
-                }
-                
-                // Update environment info with API response
-                document.getElementById('env-info').textContent = JSON.stringify({
-                    userAgent: navigator.userAgent,
-                    location: window.location.href,
-                    timestamp: new Date().toISOString(),
-                    apiHealth: data
-                }, null, 2);
-            })
-            .catch(error => {
-                document.getElementById('status').className = 'status disconnected';
-                document.getElementById('status').innerHTML = '❌ API Not Responding';
-                
-                // Test direct function if regular API fails
-                setTimeout(testDirectFunction, 1000);
-            });
-
-        // Auto-test endpoints after a delay
-        setTimeout(testAllEndpoints, 1500);
+        // Run initial tests
+        setTimeout(testDirectFunction, 1000);
     </script>
 </body>
 </html>
