@@ -1,19 +1,19 @@
 [build]
-  functions = "coinbackend"
+  functions = "."  # Current directory (coinbackend)
+  # REMOVE the publish line completely since you don't have a frontend
 
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/index/:splat"
   status = 200
 
-# Health check endpoint at root
 [[redirects]]
   from = "/"
   to = "/.netlify/functions/index/api/health"
   status = 200
 
-# Test endpoint
+# Add this to handle any other paths
 [[redirects]]
-  from = "/test"
-  to = "/.netlify/functions/index/test"
+  from = "/*"
+  to = "/.netlify/functions/index"
   status = 200
