@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoinWaveZ Backend API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        .endpoint {
+            background: #f9f9f9;
+            padding: 10px;
+            border-left: 4px solid #007acc;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        .disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CoinWaveZ Backend API</h1>
+        <p>Your backend API is successfully deployed on Netlify!</p>
+        
+        <h2>Available Endpoints:</h2>
+        <div class="endpoint">GET /api/health - Health check</div>
+        <div class="endpoint">GET /api/news - Crypto news</div>
+        <div class="endpoint">POST /api/auth/* - Authentication routes</div>
+        <div class="endpoint">GET /api/coins/* - Coin data routes</div>
+        <div class="endpoint">POST /api/payments/* - Payment processing</div>
+        <div class="endpoint">GET /api/banners/* - Banner management</div>
+        
+        <h2>Connection Status:</h2>
+        <div id="status" class="status">Checking...</div>
+        
+        <p>Use the endpoints above in your frontend application.</p>
+    </div>
+
+    <script>
+        // Check API health status
+        fetch('/api/health')
+            .then(response => response.json())
+            .then(data => {
+                const statusDiv = document.getElementById('status');
+                if (data.mongodbConnected) {
+                    statusDiv.className = 'status connected';
+                    statusDiv.innerHTML = '✅ MongoDB Connected Successfully';
+                } else {
+                    statusDiv.className = 'status disconnected';
+                    statusDiv.innerHTML = '❌ MongoDB Not Connected';
+                }
+            })
+            .catch(error => {
+                document.getElementById('status').className = 'status disconnected';
+                document.getElementById('status').innerHTML = '❌ API Not Responding';
+            });
+    </script>
+</body>
+</html>
