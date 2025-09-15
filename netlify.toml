@@ -1,10 +1,5 @@
 [build]
   functions = "coinbackend"
-  publish = "."  # Force current directory
-
-# Explicitly tell Netlify to skip build processing
-[build.processing]
-  skip_processing = true
 
 [[redirects]]
   from = "/api/*"
@@ -15,9 +10,3 @@
   from = "/"
   to = "/.netlify/functions/index/api/health"
   status = 200
-
-# Add headers to prevent caching issues
-[[headers]]
-  for = "/*"
-  [headers.values]
-    X-Netlify-Functions = "enabled"
