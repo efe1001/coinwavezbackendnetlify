@@ -13,10 +13,10 @@ const serverless = require('serverless-http');
 const app = express();
 
 // Initialize Supabase client
-const supabaseUrl = process.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.SUPABASE_URL; // Removed VITE_ prefix for Node.js
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Supabase configuration error: Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY`);
+  console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Supabase configuration error: Missing SUPABASE_URL or SUPABASE_ANON_KEY`);
   throw new Error('Supabase configuration is incomplete. Check your .env file.');
 }
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -41,7 +41,7 @@ app.use('/api/banners', bannerRoutes);
 app.get('/api/news', async (req, res) => {
   console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Fetching news from CryptoPanic`);
   try {
-    const API_KEY = process.env.CRYPTO_PANIC_API_KEY; // Moved to env variable for security
+    const API_KEY = process.env.CRYPTO_PANIC_API_KEY;
     if (!API_KEY) {
       throw new Error('Missing CRYPTO_PANIC_API_KEY in environment variables');
     }
