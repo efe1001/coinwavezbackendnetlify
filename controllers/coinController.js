@@ -1,18 +1,12 @@
-const lowdb = require('lowdb');
-const FileSync = require('lowdb/adapters/FileSync');
-const path = require('path');
-const fs = require('fs');
 
-// Initialize lowdb
-const dbPath = path.join(__dirname, '../db.json');
-try {
-  fs.accessSync(dbPath, fs.constants.R_OK | fs.constants.W_OK);
-} catch (err) {
-  console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Creating db.json:`, err);
-  fs.writeFileSync(dbPath, JSON.stringify({ admins: [], users: [], coins: [], promoted: [], banners: [] }, null, 2));
-}
-const adapter = new FileSync(dbPath);
-const db = lowdb(adapter);
+const { createClient } = require('@supabase/supabase-js');
+const Entity = require('../models/Entity');
+
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.VITE_SUPABASE_URL,
+  process.env.VITE_SUPABASE_ANON_KEY
+);
 
 exports.submitCoin = async (req, res) => {
   try {
@@ -53,17 +47,38 @@ exports.submitCoin = async (req, res) => {
       volume = '',
       rank = '',
       createdAt = new Date().toISOString(),
-      roadmap = ''
+      roadmap = '',
+      logoUrl
     } = req.body;
-    const logo = req.file ? req.file.filename : null;
+
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Received coin submission data:`, {
       name, symbol, description, categories, website, twitter, telegram, discord,
       contractAddress, chain, launchDate, marketCap, contactName, contactEmail,
       contactTelegram, price, totalSupply, circulatingSupply, whitepaper, auditLink,
       badges, team, presalePhase, youtubeLink, xLink, telegramLink, discordLink,
       watchlists, votes, dailyVotes, dailyBoosts, kycStatus, cap, volume, rank,
-      createdAt, roadmap, logo, fileDetails: req.file
+      createdAt, roadmap, logo: logoUrl
     });
+
+    let logoPath = null;
+    if (logoUrl) {
+      console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Logo file received:`, logoUrl);
+      const { data: fileData, error: fileError } = await supabase.storage
+        .from('coin-logos')
+        .list('', { search: logoUrl });
+
+      if (fileError) {
+        console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Supabase file check error:`, fileError);
+        return res.status(500).json({ message: 'Error verifying logo file', error: fileError.message });
+      }
+
+      if (!fileData.find(file => file.name === logoUrl)) {
+        console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Logo file not found in Supabase:`, logoUrl);
+        return res.status(400).json({ message: 'Logo file not found in storage' });
+      }
+
+      logoPath = logoUrl;
+    }
 
     let parsedCategories = [];
     let parsedBadges = [];
@@ -80,38 +95,24 @@ exports.submitCoin = async (req, res) => {
       return res.status(400).json({ message: 'Invalid categories or badges format', error: parseError.message });
     }
 
-    const newCoin = {
-      id: Date.now().toString(),
+    const newCoin = new Entity.Coin({
       name, symbol, description, categories: parsedCategories, website, twitter, telegram, discord,
       contractAddress, chain, launchDate, marketCap, contactName, contactEmail, contactTelegram,
       price, totalSupply, circulatingSupply, whitepaper, auditLink, badges: parsedBadges,
       team, presalePhase, youtubeLink, xLink, telegramLink, discordLink,
       watchlists: parseInt(watchlists) || 0, votes: parseInt(votes) || 0,
       dailyVotes: parseInt(dailyVotes) || 0, dailyBoosts: parseInt(dailyBoosts) || 0,
-      kycStatus, cap, volume, rank, createdAt, roadmap, logo, status: 'pending',
+      kycStatus, cap, volume, rank, createdAt, roadmap, logo: logoPath, status: 'pending',
       boosts: parseInt(req.body.boosts) || 0
-    };
+    });
 
-    try {
-      fs.accessSync(dbPath, fs.constants.W_OK);
-      console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] db.json is writable`);
-    } catch (err) {
-      console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] db.json is not writable:`, err);
-      return res.status(500).json({ message: 'Database file is not writable', error: err.message });
-    }
-
-    try {
-      db.get('coins').push(newCoin).write();
-      console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Coin saved to db:`, newCoin);
-    } catch (dbError) {
-      console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Error writing to db:`, dbError);
-      return res.status(500).json({ message: 'Failed to save coin to database', error: dbError.message });
-    }
+    await newCoin.save();
+    console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Coin saved to db:`, newCoin);
 
     res.status(201).json({ message: 'Coin submitted successfully', coin: newCoin });
   } catch (error) {
     console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Coin submission error:`, {
-      message: error.message, stack: error.stack, body: req.body, file: req.file
+      message: error.message, stack: error.stack, body: req.body
     });
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -119,15 +120,7 @@ exports.submitCoin = async (req, res) => {
 
 exports.getCoins = async (req, res) => {
   try {
-    try {
-      fs.accessSync(dbPath, fs.constants.R_OK);
-      console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] db.json is readable`);
-    } catch (err) {
-      console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] db.json is not readable:`, err);
-      return res.status(500).json({ message: 'Database file is not readable', error: err.message });
-    }
-
-    const coins = db.get('coins').value(); // Return all coins, no status filter
+    const coins = await Entity.Coin.find();
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Returning all coins:`, coins);
     res.status(200).json(coins);
   } catch (error) {
@@ -140,15 +133,7 @@ exports.getCoins = async (req, res) => {
 
 exports.getAllCoins = async (req, res) => {
   try {
-    try {
-      fs.accessSync(dbPath, fs.constants.R_OK);
-      console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] db.json is readable`);
-    } catch (err) {
-      console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] db.json is not readable:`, err);
-      return res.status(500).json({ message: 'Database file is not readable', error: err.message });
-    }
-
-    const coins = db.get('coins').value();
+    const coins = await Entity.Coin.find();
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Returning all coins:`, coins);
     res.status(200).json(coins);
   } catch (error) {
@@ -161,15 +146,7 @@ exports.getAllCoins = async (req, res) => {
 
 exports.getPendingCoins = async (req, res) => {
   try {
-    try {
-      fs.accessSync(dbPath, fs.constants.R_OK);
-      console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] db.json is readable`);
-    } catch (err) {
-      console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] db.json is not readable:`, err);
-      return res.status(500).json({ message: 'Database file is not readable', error: err.message });
-    }
-
-    const pendingCoins = db.get('coins').filter({ status: 'pending' }).value();
+    const pendingCoins = await Entity.Coin.find({ status: 'pending' });
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Returning pending coins:`, pendingCoins);
     res.status(200).json(pendingCoins);
   } catch (error) {
@@ -184,11 +161,11 @@ exports.approveCoin = async (req, res) => {
   try {
     const { id } = req.params;
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Approving coin:`, id);
-    const coin = db.get('coins').find({ id }).value();
+    const coin = await Entity.Coin.findOne({ id });
     if (!coin) {
       return res.status(404).json({ message: 'Coin not found' });
     }
-    db.get('coins').find({ id }).assign({ status: 'approved' }).write();
+    await Entity.Coin.updateOne({ id }, { status: 'approved' });
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Coin approved:`, id);
     res.status(200).json({ message: 'Coin approved successfully' });
   } catch (error) {
@@ -203,11 +180,11 @@ exports.rejectCoin = async (req, res) => {
   try {
     const { id } = req.params;
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Rejecting coin:`, id);
-    const coin = db.get('coins').find({ id }).value();
+    const coin = await Entity.Coin.findOne({ id });
     if (!coin) {
       return res.status(404).json({ message: 'Coin not found' });
     }
-    db.get('coins').find({ id }).assign({ status: 'rejected' }).write();
+    await Entity.Coin.updateOne({ id }, { status: 'rejected' });
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Coin rejected:`, id);
     res.status(200).json({ message: 'Coin rejected successfully' });
   } catch (error) {
@@ -222,12 +199,12 @@ exports.promoteCoin = async (req, res) => {
   try {
     const { id } = req.params;
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Promoting coin:`, id);
-    const coin = db.get('coins').find({ id }).value();
+    const coin = await Entity.Coin.findOne({ id });
     if (!coin) {
       return res.status(404).json({ message: 'Coin not found' });
     }
-    db.get('coins').find({ id }).assign({ status: 'promoted' }).write();
-    db.get('promoted').push({
+    await Entity.Coin.updateOne({ id }, { status: 'promoted' });
+    const newPromoted = new Entity.Promoted({
       id: coin.id,
       name: coin.name,
       symbol: coin.symbol,
@@ -239,7 +216,8 @@ exports.promoteCoin = async (req, res) => {
       volume: coin.volume,
       launchDate: coin.launchDate,
       boosts: coin.boosts
-    }).write();
+    });
+    await newPromoted.save();
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Coin promoted:`, id);
     res.status(200).json({ message: 'Coin promoted successfully' });
   } catch (error) {
@@ -254,12 +232,12 @@ exports.unpromoteCoin = async (req, res) => {
   try {
     const { id } = req.params;
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Unpromoting coin:`, id);
-    const coin = db.get('coins').find({ id }).value();
+    const coin = await Entity.Coin.findOne({ id });
     if (!coin) {
       return res.status(404).json({ message: 'Coin not found' });
     }
-    db.get('coins').find({ id }).assign({ status: 'approved' }).write();
-    db.set('promoted', db.get('promoted').filter((p) => p.id !== id).value()).write();
+    await Entity.Coin.updateOne({ id }, { status: 'approved' });
+    await Entity.Promoted.deleteOne({ id });
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Coin unpromoted:`, id);
     res.status(200).json({ message: 'Coin unpromoted successfully' });
   } catch (error) {
@@ -275,7 +253,7 @@ exports.editCoin = async (req, res) => {
     const { id } = req.params;
     const updatedData = req.body;
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Editing coin:`, id, updatedData);
-    const coin = db.get('coins').find({ id }).value();
+    const coin = await Entity.Coin.findOne({ id });
     if (!coin) {
       return res.status(404).json({ message: 'Coin not found' });
     }
@@ -297,11 +275,30 @@ exports.editCoin = async (req, res) => {
         parsedBadges = [];
       }
     }
-    const updatedCoin = { ...coin, ...updatedData, categories: parsedCategories, badges: parsedBadges, logo: req.file ? req.file.filename : coin.logo };
-    db.get('coins').find({ id }).assign(updatedCoin).write();
+    let logoPath = coin.logo;
+    if (updatedData.logoUrl) {
+      console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Logo file received for edit:`, updatedData.logoUrl);
+      const { data: fileData, error: fileError } = await supabase.storage
+        .from('coin-logos')
+        .list('', { search: updatedData.logoUrl });
+
+      if (fileError) {
+        console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Supabase file check error:`, fileError);
+        return res.status(500).json({ message: 'Error verifying logo file', error: fileError.message });
+      }
+
+      if (!fileData.find(file => file.name === updatedData.logoUrl)) {
+        console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Logo file not found in Supabase:`, updatedData.logoUrl);
+        return res.status(400).json({ message: 'Logo file not found in storage' });
+      }
+
+      logoPath = updatedData.logoUrl;
+    }
+
+    const updatedCoin = { ...updatedData, categories: parsedCategories, badges: parsedBadges, logo: logoPath };
+    await Entity.Coin.updateOne({ id }, updatedCoin);
     if (coin.status === 'promoted') {
-      db.get('promoted').find({ id }).assign({
-        id: coin.id,
+      await Entity.Promoted.updateOne({ id }, {
         name: updatedCoin.name,
         symbol: updatedCoin.symbol,
         logo: updatedCoin.logo,
@@ -312,7 +309,7 @@ exports.editCoin = async (req, res) => {
         volume: updatedCoin.volume,
         launchDate: updatedCoin.launchDate,
         boosts: updatedCoin.boosts
-      }).write();
+      });
     }
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Coin edited:`, id);
     res.status(200).json({ message: 'Coin edited successfully' });
@@ -328,12 +325,12 @@ exports.deleteCoin = async (req, res) => {
   try {
     const { id } = req.params;
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Deleting coin:`, id);
-    const coin = db.get('coins').find({ id }).value();
+    const coin = await Entity.Coin.findOne({ id });
     if (!coin) {
       return res.status(404).json({ message: 'Coin not found' });
     }
-    db.set('coins', db.get('coins').filter((c) => c.id !== id).value()).write();
-    db.set('promoted', db.get('promoted').filter((p) => p.id !== id).value()).write();
+    await Entity.Coin.deleteOne({ id });
+    await Entity.Promoted.deleteOne({ id });
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Coin deleted:`, id);
     res.status(200).json({ message: 'Coin deleted successfully' });
   } catch (error) {
@@ -348,7 +345,7 @@ exports.getCoinById = async (req, res) => {
   try {
     const { id } = req.params;
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Fetching coin:`, id);
-    const coin = db.get('coins').find({ id }).value();
+    const coin = await Entity.Coin.findOne({ id });
     if (!coin) {
       return res.status(404).json({ message: 'Coin not found' });
     }
@@ -363,15 +360,7 @@ exports.getCoinById = async (req, res) => {
 
 exports.getPromotedCoins = async (req, res) => {
   try {
-    try {
-      fs.accessSync(dbPath, fs.constants.R_OK);
-      console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] db.json is readable`);
-    } catch (err) {
-      console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] db.json is not readable:`, err);
-      return res.status(500).json({ message: 'Database file is not readable', error: err.message });
-    }
-
-    const promotedCoins = db.get('promoted').value();
+    const promotedCoins = await Entity.Promoted.find();
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Returning promoted coins:`, promotedCoins);
     res.status(200).json(promotedCoins);
   } catch (error) {
@@ -384,18 +373,7 @@ exports.getPromotedCoins = async (req, res) => {
 
 exports.getNewCoins = async (req, res) => {
   try {
-    try {
-      fs.accessSync(dbPath, fs.constants.R_OK);
-      console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] db.json is readable`);
-    } catch (err) {
-      console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] db.json is not readable:`, err);
-      return res.status(500).json({ message: 'Database file is not readable', error: err.message });
-    }
-
-    const newCoins = db.get('coins')
-      .sortBy('createdAt')
-      .reverse()
-      .value(); // Return all coins, no status filter
+    const newCoins = await Entity.Coin.find().sort({ createdAt: -1 });
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Returning new coins:`, newCoins);
     res.status(200).json(newCoins);
   } catch (error) {
@@ -408,17 +386,7 @@ exports.getNewCoins = async (req, res) => {
 
 exports.getPresaleCoins = async (req, res) => {
   try {
-    try {
-      fs.accessSync(dbPath, fs.constants.R_OK);
-      console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] db.json is readable`);
-    } catch (err) {
-      console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] db.json is not readable:`, err);
-      return res.status(500).json({ message: 'Database file is not readable', error: err.message });
-    }
-
-    const presaleCoins = db.get('coins')
-      .filter((coin) => (coin.status === 'approved' || coin.status === 'promoted') && coin.presalePhase)
-      .value();
+    const presaleCoins = await Entity.Coin.find({ status: { $in: ['approved', 'promoted'] }, presalePhase: { $exists: true, $ne: '' } });
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Returning presale coins:`, presaleCoins);
     res.status(200).json(presaleCoins);
   } catch (error) {
@@ -431,14 +399,29 @@ exports.getPresaleCoins = async (req, res) => {
 
 exports.uploadBanner = async (req, res) => {
   try {
-    const banner = req.file ? req.file.filename : null;
-    if (!banner) {
-      return res.status(400).json({ message: 'No banner file provided' });
+    const { bannerUrl } = req.body;
+    if (!bannerUrl) {
+      return res.status(400).json({ message: 'No banner URL provided' });
     }
-    console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Uploading banner:`, banner);
-    db.get('banners').push(banner).write();
-    console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Banner uploaded:`, banner);
-    res.status(200).json({ message: 'Banner uploaded successfully', filename: banner });
+    console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Uploading banner:`, bannerUrl);
+    const { data: fileData, error: fileError } = await supabase.storage
+      .from('banners')
+      .list('', { search: bannerUrl });
+
+    if (fileError) {
+      console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Supabase file check error:`, fileError);
+      return res.status(500).json({ message: 'Error verifying banner file', error: fileError.message });
+    }
+
+    if (!fileData.find(file => file.name === bannerUrl)) {
+      console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Banner file not found in Supabase:`, bannerUrl);
+      return res.status(400).json({ message: 'Banner file not found in storage' });
+    }
+
+    const newBanner = new Entity.Banner({ filename: bannerUrl });
+    await newBanner.save();
+    console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Banner uploaded:`, bannerUrl);
+    res.status(200).json({ message: 'Banner uploaded successfully', filename: bannerUrl });
   } catch (error) {
     console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Error uploading banner:`, {
       message: error.message, stack: error.stack
@@ -451,11 +434,13 @@ exports.deleteBanner = async (req, res) => {
   try {
     const { filename } = req.params;
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Deleting banner:`, filename);
-    const banner = db.get('banners').find((b) => b === filename).value();
+    const banner = await Entity.Banner.findOne({ filename });
     if (!banner) {
       return res.status(404).json({ message: 'Banner not found' });
     }
-    db.set('banners', db.get('banners').filter((b) => b !== filename).value()).write();
+    await Entity.Banner.deleteOne({ filename });
+    // Optionally delete from Supabase
+    await supabase.storage.from('banners').remove([filename]);
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Banner deleted:`, filename);
     res.status(200).json({ message: 'Banner deleted successfully' });
   } catch (error) {
@@ -468,17 +453,9 @@ exports.deleteBanner = async (req, res) => {
 
 exports.getBanners = async (req, res) => {
   try {
-    try {
-      fs.accessSync(dbPath, fs.constants.R_OK);
-      console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] db.json is readable`);
-    } catch (err) {
-      console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] db.json is not readable:`, err);
-      return res.status(500).json({ message: 'Database file is not readable', error: err.message });
-    }
-
-    const banners = db.get('banners').value();
+    const banners = await Entity.Banner.find();
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Returning banners:`, banners);
-    res.status(200).json(banners);
+    res.status(200).json(banners.map(b => b.filename));
   } catch (error) {
     console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Error fetching banners:`, {
       message: error.message, stack: error.stack
@@ -499,51 +476,36 @@ exports.boostCoin = async (req, res) => {
       boostAmount
     });
 
-    // Find the coin
-    const coin = db.get('coins').find({ id }).value();
+    const coin = await Entity.Coin.findOne({ id });
     if (!coin) {
       return res.status(404).json({ message: 'Coin not found' });
     }
 
-    // Find the user
-    const user = db.get('users').find({ id: userId }).value();
+    const user = await Entity.User.findOne({ id: userId });
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Check if user has enough coins
     if (user.coinCount < boostAmount) {
       return res.status(400).json({ message: 'Insufficient coins' });
     }
 
-    // Update user's coin count
-    db.get('users')
-      .find({ id: userId })
-      .assign({ coinCount: user.coinCount - boostAmount })
-      .write();
+    await Entity.User.updateOne({ id: userId }, { coinCount: user.coinCount - boostAmount });
 
-    // Update coin's boost count
     const currentBoosts = coin.boosts || 0;
     const currentDailyBoosts = coin.dailyBoosts || 0;
     
-    db.get('coins')
-      .find({ id })
-      .assign({ 
-        boosts: currentBoosts + boostAmount,
-        dailyBoosts: currentDailyBoosts + boostAmount
-      })
-      .write();
+    await Entity.Coin.updateOne({ id }, { 
+      boosts: currentBoosts + boostAmount,
+      dailyBoosts: currentDailyBoosts + boostAmount
+    });
 
-    // If coin is promoted, update promoted coins as well
     if (coin.status === 'promoted') {
-      const promotedCoin = db.get('promoted').find({ id }).value();
+      const promotedCoin = await Entity.Promoted.findOne({ id });
       if (promotedCoin) {
-        db.get('promoted')
-          .find({ id })
-          .assign({ 
-            boosts: (promotedCoin.boosts || 0) + boostAmount
-          })
-          .write();
+        await Entity.Promoted.updateOne({ id }, { 
+          boosts: (promotedCoin.boosts || 0) + boostAmount
+        });
       }
     }
 
@@ -566,3 +528,5 @@ exports.boostCoin = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
+module.exports = exports;

@@ -1,40 +1,42 @@
-const low = require('lowdb');
-const FileSync = require('lowdb/adapters/FileSync');
-const Banners = low(new FileSync('models/banners.json'));
-const multer = require('multer');
-const upload = multer({ dest: 'uploads/' });
-
-Banners.defaults({ banners: [] }).write();
+const Entity = require('../models/Entity');
 
 exports.uploadBanner = async (req, res) => {
   const { position } = req.body;
   const image = req.file ? req.file.path : '';
   try {
-    Banners.get('banners')
-      .push({ id: Date.now().toString(), image, position, createdAt: new Date() })
-      .write();
-    res.status(201).json({ message: 'Banner uploaded' });
+    const newBanner = new Entity.Banner({ image, position, filename: req.file ? req.file.filename : null });
+    await newBanner.save();
+    res.status(201).json({ message: 'Banner uploaded', banner: newBanner });
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Error uploading banner:`, {
+      message: error.message, stack: error.stack
+    });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
 exports.getBanners = async (req, res) => {
   try {
-    const banners = Banners.get('banners').value();
+    const banners = await Entity.Banner.find();
     res.json(banners);
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Error fetching banners:`, {
+      message: error.message, stack: error.stack
+    });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
 exports.deleteBanner = async (req, res) => {
   const { id } = req.params;
   try {
-    const banner = Banners.get('banners').remove({ id }).write();
-    if (!banner.length) return res.status(404).json({ message: 'Banner not found' });
+    const banner = await Entity.Banner.findOneAndDelete({ id });
+    if (!banner) return res.status(404).json({ message: 'Banner not found' });
     res.json({ message: 'Banner deleted' });
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Error deleting banner:`, {
+      message: error.message, stack: error.stack
+    });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };

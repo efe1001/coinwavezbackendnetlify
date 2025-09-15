@@ -98,6 +98,6 @@ router.patch('/coins/:id', verifyToken, verifyAdmin, upload.single('logo'), edit
 router.delete('/coins/:id', verifyToken, verifyAdmin, deleteCoin);
 router.post('/banners', verifyToken, verifyAdmin, upload.single('banner'), uploadBanner);
 router.delete('/banners/:filename', verifyToken, verifyAdmin, deleteBanner);
-router.post('/boost/:id', verifyToken, verifyUser, boostCoin); // Add boost coin route
+router.post('/boost/:id', verifyToken, verifyUser, boostCoin);
 
 module.exports = router;

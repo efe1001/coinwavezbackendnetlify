@@ -1,23 +1,6 @@
-const lowdb = require('lowdb');
-const FileSync = require('lowdb/adapters/FileSync');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const path = require('path');
-const fs = require('fs');
-
-// Initialize lowdb
-const dbPath = path.join(__dirname, '../db.json');
-try {
-  fs.accessSync(dbPath, fs.constants.R_OK | fs.constants.W_OK);
-} catch (err) {
-  console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Creating db.json:`, err);
-  fs.writeFileSync(dbPath, JSON.stringify({ admins: [], users: [], coins: [], promoted: [], banners: [] }, null, 2));
-}
-const adapter = new FileSync(dbPath);
-const db = lowdb(adapter);
-
-// Set default database structure
-db.defaults({ admins: [], users: [], coins: [], promoted: [], banners: [] }).write();
+const Entity = require('../models/Entity');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key_1234567890';
 
@@ -29,14 +12,14 @@ exports.registerUser = async (req, res) => {
       return res.status(400).json({ message: 'All fields are required' });
     }
 
-    const existingUser = db.get('users').find({ email }).value();
+    const existingUser = await Entity.User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: 'Email already registered' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = { id: Date.now().toString(), name, email, password: hashedPassword, coinCount: 0 };
-    db.get('users').push(newUser).write();
+    const newUser = new Entity.User({ name, email, password: hashedPassword, coinCount: 0 });
+    await newUser.save();
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] User saved to db:`, newUser);
 
     res.status(201).json({ message: 'User registered successfully' });
@@ -57,14 +40,14 @@ exports.registerAdmin = async (req, res) => {
       return res.status(400).json({ message: 'All fields are required' });
     }
 
-    const existingAdmin = db.get('admins').find({ email }).value();
+    const existingAdmin = await Entity.Admin.findOne({ email });
     if (existingAdmin) {
       return res.status(400).json({ message: 'Email already registered' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newAdmin = { id: Date.now().toString(), name, email, password: hashedPassword };
-    db.get('admins').push(newAdmin).write();
+    const newAdmin = new Entity.Admin({ name, email, password: hashedPassword });
+    await newAdmin.save();
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Admin saved to db:`, newAdmin);
 
     res.status(201).json({ message: 'Admin registered successfully' });
@@ -85,7 +68,7 @@ exports.loginUser = async (req, res) => {
       return res.status(400).json({ message: 'Email and password are required' });
     }
 
-    const user = db.get('users').find({ email }).value();
+    const user = await Entity.User.findOne({ email });
     if (!user) {
       return res.status(400).json({ message: 'Invalid email or password' });
     }
@@ -115,7 +98,7 @@ exports.loginAdmin = async (req, res) => {
       return res.status(400).json({ message: 'Email and password are required' });
     }
 
-    const admin = db.get('admins').find({ email }).value();
+    const admin = await Entity.Admin.findOne({ email });
     if (!admin) {
       return res.status(400).json({ message: 'Invalid email or password' });
     }
@@ -140,7 +123,7 @@ exports.loginAdmin = async (req, res) => {
 exports.getUsers = async (req, res) => {
   try {
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Fetching users for admin:`, req.user.id);
-    const users = db.get('users').value() || [];
+    const users = await Entity.User.find();
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Returning users:`, users.map(u => ({ id: u.id, email: u.email, name: u.name, coinCount: u.coinCount })));
     res.status(200).json(users);
   } catch (error) {
@@ -156,11 +139,11 @@ exports.deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Deleting user:`, id);
-    const user = db.get('users').find({ id }).value();
+    const user = await Entity.User.findOne({ id });
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    db.set('users', db.get('users').filter((u) => u.id !== id).value()).write();
+    await Entity.User.deleteOne({ id });
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] User deleted:`, id);
     res.status(200).json({ message: 'User deleted successfully' });
   } catch (error) {
@@ -182,16 +165,16 @@ exports.addCoinsToUser = async (req, res) => {
       return res.status(400).json({ message: 'Invalid coins value' });
     }
 
-    const user = db.get('users').find({ id: userId }).value();
+    const user = await Entity.User.findOne({ id: userId });
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    user.coinCount = (user.coinCount || 0) + parseInt(coins);
-    db.get('users').find({ id: userId }).assign({ coinCount: user.coinCount }).write();
-    console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Updated user ${userId} coin count to ${user.coinCount}`);
+    const newCoinCount = (user.coinCount || 0) + parseInt(coins);
+    await Entity.User.updateOne({ id: userId }, { coinCount: newCoinCount });
+    console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Updated user ${userId} coin count to ${newCoinCount}`);
 
-    res.status(200).json({ message: 'Coins added successfully', userId, coins: user.coinCount });
+    res.status(200).json({ message: 'Coins added successfully', userId, coins: newCoinCount });
   } catch (error) {
     console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Error adding coins:`, {
       message: error.message,
@@ -209,12 +192,17 @@ exports.refreshToken = async (req, res) => {
       return res.status(401).json({ message: 'No token provided' });
     }
     const decoded = jwt.verify(token, JWT_SECRET, { ignoreExpiration: true });
-    const user = db.get('users').find({ id: decoded.id }).value() || db.get('admins').find({ id: decoded.id }).value();
+    let user = await Entity.User.findOne({ id: decoded.id });
+    let role = 'user';
+    if (!user) {
+      user = await Entity.Admin.findOne({ id: decoded.id });
+      role = 'admin';
+    }
     if (!user) {
       return res.status(401).json({ message: 'Invalid user' });
     }
     const newToken = jwt.sign(
-      { id: user.id, role: user.role || (db.get('admins').find({ id: user.id }).value() ? 'admin' : 'user') },
+      { id: user.id, role },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -231,13 +219,13 @@ exports.refreshToken = async (req, res) => {
 
 exports.getCurrentUser = async (req, res) => {
   try {
-    const userId = req.user.id; // From verifyToken middleware
+    const userId = req.user.id;
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Fetching current user:`, userId);
 
-    let user = db.get('users').find({ id: userId }).value();
+    let user = await Entity.User.findOne({ id: userId });
     let role = 'user';
     if (!user) {
-      user = db.get('admins').find({ id: userId }).value();
+      user = await Entity.Admin.findOne({ id: userId });
       role = 'admin';
     }
     if (!user) {
