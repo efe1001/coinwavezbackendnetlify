@@ -22,10 +22,18 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// MongoDB Connection
+// MongoDB Connection with status tracking
+let mongoConnected = false;
+
 mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB connected`))
-  .catch(err => console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB connection error:`, err));
+  .then(() => {
+    mongoConnected = true;
+    console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB connected successfully`);
+  })
+  .catch(err => {
+    mongoConnected = false;
+    console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB connection error:`, err.message);
+  });
 
 // Middleware
 app.use(cors());
@@ -37,6 +45,18 @@ app.use('/api', authRoutes);
 app.use('/api', coinRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/banners', bannerRoutes);
+
+// Root endpoint with connection status
+app.get('/', (req, res) => {
+  const status = {
+    message: mongoConnected ? 'MongoDB connected successfully' : 'MongoDB not connected',
+    mongodb: mongoConnected ? 'connected' : 'not connected',
+    supabase: supabaseUrl ? 'configured' : 'not configured',
+    timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })
+  };
+  
+  res.status(200).json(status);
+});
 
 // CryptoPanic News API Proxy Endpoint
 app.get('/api/news', async (req, res) => {
@@ -137,7 +157,7 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ 
     status: 'OK', 
     timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' }),
-    mongodbConnected: mongoose.connection.readyState === 1,
+    mongodbConnected: mongoConnected,
     supabaseConnected: !!supabase
   });
 });
@@ -160,6 +180,7 @@ module.exports.handler = serverless(app);
 if (process.env.NETLIFY_DEV !== 'true') {
   app.listen(PORT, () => {
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Server running on http://localhost:${PORT}`);
+    console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB status: ${mongoConnected ? 'CONNECTED' : 'NOT CONNECTED'}`);
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Payment endpoints available at http://localhost:${PORT}/api/payments`);
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] News endpoint available at http://localhost:${PORT}/api/news`);
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Banner endpoints available at http://localhost:${PORT}/api/banners`);
