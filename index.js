@@ -8,9 +8,9 @@ const coinRoutes = require('./routes/coinRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const bannerRoutes = require('./routes/bannerRoutes');
 const fetch = require('node-fetch');
+const serverless = require('serverless-http');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
 
 // Initialize Supabase client
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
@@ -41,7 +41,10 @@ app.use('/api/banners', bannerRoutes);
 app.get('/api/news', async (req, res) => {
   console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Fetching news from CryptoPanic`);
   try {
-    const API_KEY = 'a89c9df2a5a33117ab7f0368f5fade13c7881b6a';
+    const API_KEY = process.env.CRYPTO_PANIC_API_KEY; // Moved to env variable for security
+    if (!API_KEY) {
+      throw new Error('Missing CRYPTO_PANIC_API_KEY in environment variables');
+    }
     const { kind = 'news', currencies, region, filter = 'rising' } = req.query;
     
     let apiUrl = `https://cryptopanic.com/api/v1/posts/?auth_token=${API_KEY}&kind=${kind}&filter=${filter}`;
@@ -152,15 +155,4 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Server error', error: err.message });
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Server running on http://localhost:${PORT}`);
-  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Payment endpoints available at http://localhost:${PORT}/api/payments`);
-  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] News endpoint available at http://localhost:${PORT}/api/news`);
-  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Banner endpoints available at http://localhost:${PORT}/api/banners`);
-}).on('error', (err) => {
-  console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Server startup error:`, err);
-  if (err.code === 'EADDRINUSE') {
-    console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Port ${PORT} is already in use. Try a different port.`);
-  }
-});
+module.exports.handler = serverless(app);
