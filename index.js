@@ -174,13 +174,3 @@ app.get('/api/health', (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Server error:`, {
-    message: err.message,
-    stack: err.stack,
-    path: req.path
-  });
-  
-  res.status(500).json({ message: 'Server error', error: err.message });
-});
-
-module.exports.handler = serverless(app);
