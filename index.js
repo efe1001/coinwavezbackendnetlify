@@ -5,49 +5,12 @@ const mongoose = require('mongoose');
 const { createClient } = require('@supabase/supabase-js');
 const fetch = require('node-fetch');
 const serverless = require('serverless-http');
-const path = require('path');
 
-// Import routes directly (ESBuild will bundle them)
-let authRoutes, coinRoutes, paymentRoutes, bannerRoutes;
-
-try {
-  // Import the route handlers directly
-  authRoutes = require('../../routes/authRoutes');
-  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Auth routes loaded successfully`);
-} catch (e) {
-  console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Failed to load authRoutes:`, e.message);
-  // Create fallback routes
-  authRoutes = require('express').Router();
-  authRoutes.post('/register', (req, res) => res.json({ message: 'Auth route placeholder' }));
-  authRoutes.post('/login', (req, res) => res.json({ message: 'Auth route placeholder' }));
-}
-
-try {
-  coinRoutes = require('../../routes/coinRoutes');
-  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Coin routes loaded successfully`);
-} catch (e) {
-  console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Failed to load coinRoutes:`, e.message);
-  coinRoutes = require('express').Router();
-  coinRoutes.get('/coins', (req, res) => res.json({ message: 'Coin route placeholder' }));
-}
-
-try {
-  paymentRoutes = require('../../routes/paymentRoutes');
-  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Payment routes loaded successfully`);
-} catch (e) {
-  console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Failed to load paymentRoutes:`, e.message);
-  paymentRoutes = require('express').Router();
-  paymentRoutes.post('/create', (req, res) => res.json({ message: 'Payment route placeholder' }));
-}
-
-try {
-  bannerRoutes = require('../../routes/bannerRoutes');
-  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Banner routes loaded successfully`);
-} catch (e) {
-  console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Failed to load bannerRoutes:`, e.message);
-  bannerRoutes = require('express').Router();
-  bannerRoutes.get('/banners', (req, res) => res.json({ message: 'Banner route placeholder' }));
-}
+// Import routes
+const authRoutes = require('./routes/authRoutes');
+const coinRoutes = require('./routes/coinRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
+const bannerRoutes = require('./routes/bannerRoutes');
 
 const app = express();
 
@@ -106,7 +69,7 @@ app.use((req, res, next) => {
 // Debug endpoint
 app.get('/test', (req, res) => {
   res.json({ 
-    message: 'Serverless function is running', 
+    message: 'Server is running', 
     timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' }),
     connections: {
       mongodb: mongodbConnected ? "Connected" : "Not connected",
@@ -229,5 +192,20 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Server error', error: err.message });
 });
 
-module.exports.handler = serverless(app);
-module.exports.supabase = supabase;
+// Export for both serverless and standalone server
+const handler = serverless(app);
+
+// For Netlify Functions
+module.exports.handler = async (event, context) => {
+  return await handler(event, context);
+};
+
+// For standalone server
+if (require.main === module) {
+  const PORT = process.env.PORT || 3001;
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+
+module.exports = app;
