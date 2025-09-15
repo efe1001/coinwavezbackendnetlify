@@ -3,7 +3,7 @@ const axios = require('axios');
 const router = express.Router();
 const crypto = require('crypto');
 require('dotenv').config();
-const Entity = require('../models/Entity');
+const Entity = require('../models/entity');
 
 const API_KEY = process.env.COINBASE_API_KEY;
 const WEBHOOK_SECRET = process.env.COINBASE_WEBHOOK_SECRET;

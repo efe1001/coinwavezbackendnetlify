@@ -1,4 +1,4 @@
-const Entity = require('../models/Entity');
+const Entity = require('../models/entity');
 
 exports.uploadBanner = async (req, res) => {
   const { position } = req.body;
