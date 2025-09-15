@@ -5,7 +5,7 @@
 [build.environment]
   NODE_VERSION = "18"
 
-# API routes - redirect to serverless function
+# API routes
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
@@ -16,9 +16,3 @@
   from = "/"
   to = "/index.html"
   status = 200
-
-# All other paths should go to API
-[[redirects]]
-  from = "/*"
-  to = "/.netlify/functions/api/:splat"
-  status = 404
