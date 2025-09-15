@@ -13,7 +13,7 @@ const serverless = require('serverless-http');
 const app = express();
 
 // Initialize Supabase client
-const supabaseUrl = process.env.SUPABASE_URL; // Removed VITE_ prefix for Node.js
+const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Supabase configuration error: Missing SUPABASE_URL or SUPABASE_ANON_KEY`);
