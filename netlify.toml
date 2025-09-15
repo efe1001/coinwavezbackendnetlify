@@ -1,6 +1,15 @@
 [build]
-  functions = "."  # Current directory (coinbackend)
-  # REMOVE the publish line completely since you don't have a frontend
+  functions = "."
+  # Explicitly set publish to empty or current directory
+  publish = "."
+
+# Disable any automatic build commands
+[build.environment]
+  NODE_ENV = "production"
+
+# Force no build process
+[build.processing]
+  skip_processing = true
 
 [[redirects]]
   from = "/api/*"
@@ -12,7 +21,6 @@
   to = "/.netlify/functions/index/api/health"
   status = 200
 
-# Add this to handle any other paths
 [[redirects]]
   from = "/*"
   to = "/.netlify/functions/index"
