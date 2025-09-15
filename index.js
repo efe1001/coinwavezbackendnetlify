@@ -9,6 +9,7 @@ const paymentRoutes = require('./routes/paymentRoutes');
 const bannerRoutes = require('./routes/bannerRoutes');
 const fetch = require('node-fetch');
 const serverless = require('serverless-http');
+const path = require('path');
 
 const app = express();
 
@@ -46,6 +47,9 @@ app.use(express.urlencoded({ extended: true, limit: '1gb' }));
 
 // Handle preflight requests
 app.options('*', cors(corsOptions));
+
+// Serve static files from build directory
+app.use(express.static(path.join(__dirname, 'build')));
 
 // Debug endpoint
 app.get('/test', (req, res) => {
@@ -172,5 +176,20 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Serve React app for any other requests
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'build', 'index.html'));
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
+  console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Server error:`, {
+    message: err.message,
+    stack: err.stack,
+    path: req.path
+  });
+  
+  res.status(500).json({ message: 'Server error', error: err.message });
+});
+
+module.exports.handler = serverless(app);
