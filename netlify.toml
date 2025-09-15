@@ -1,6 +1,6 @@
 [build]
-  functions = "."
-  publish = "build"  # Now it exists, even if empty
+  functions = "coinbackend"
+  publish = "."  # Current directory
 
 [[redirects]]
   from = "/api/*"
