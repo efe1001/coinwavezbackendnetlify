@@ -3,14 +3,37 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const { createClient } = require('@supabase/supabase-js');
-const authRoutes = require('./routes/authRoutes');
-const coinRoutes = require('./routes/coinRoutes');
-const paymentRoutes = require('./routes/paymentRoutes');
-const bannerRoutes = require('./routes/bannerRoutes');
 const fetch = require('node-fetch');
 const serverless = require('serverless-http');
 
+// Load route files with error handling
+let authRoutes, coinRoutes, paymentRoutes, bannerRoutes;
+try {
+  authRoutes = require('../routes/authRoutes');
+} catch (e) {
+  console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Failed to load authRoutes:`, e.message);
+}
+try {
+  coinRoutes = require('../routes/coinRoutes');
+} catch (e) {
+  console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Failed to load coinRoutes:`, e.message);
+}
+try {
+  paymentRoutes = require('../routes/paymentRoutes');
+} catch (e) {
+  console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Failed to load paymentRoutes:`, e.message);
+}
+try {
+  bannerRoutes = require('../routes/bannerRoutes');
+} catch (e) {
+  console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Failed to load bannerRoutes:`, e.message);
+}
+
 const app = express();
+
+// Debug environment variables
+console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] SUPABASE_URL:`, process.env.SUPABASE_URL);
+console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] CRYPTO_PANIC_API_KEY:`, process.env.CRYPTO_PANIC_API_KEY ? 'Present' : 'Missing');
 
 // Initialize Supabase client
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -35,26 +58,27 @@ app.use(cors({
 app.use(express.json({ limit: '1gb' }));
 app.use(express.urlencoded({ extended: true, limit: '1gb' }));
 
+// Attach supabase client to req
+app.use((req, res, next) => {
+  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Request received: ${req.method} ${req.url} from ${req.headers.origin}`);
+  req.supabase = supabase;
+  next();
+});
+
 // Debug endpoint
 app.get('/test', (req, res) => {
   res.json({ message: 'Serverless function is running', timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' }) });
 });
 
-// Pass supabase client to routes
-app.use((req, res, next) => {
-  req.supabase = supabase; // Attach supabase client to req object
-  next();
-});
-
 // Routes
-app.use('/api', authRoutes);
-app.use('/api', coinRoutes);
-app.use('/api/payments', paymentRoutes);
-app.use('/api/banners', bannerRoutes);
+if (authRoutes) app.use('/api', authRoutes);
+if (coinRoutes) app.use('/api', coinRoutes);
+if (paymentRoutes) app.use('/api/payments', paymentRoutes);
+if (bannerRoutes) app.use('/api/banners', bannerRoutes);
 
 // CryptoPanic News API Proxy Endpoint
 app.get('/api/news', async (req, res) => {
-  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Fetching news from CryptoPanic`);
+  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] /api/news request received from:`, req.headers.origin);
   try {
     const API_KEY = process.env.CRYPTO_PANIC_API_KEY || null;
     if (!API_KEY) {
@@ -73,9 +97,11 @@ app.get('/api/news', async (req, res) => {
       apiUrl += `&region=${region}`;
     }
     
+    console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Fetching from CryptoPanic:`, apiUrl);
     const response = await fetch(apiUrl);
     
     if (!response.ok) {
+      console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] CryptoPanic API error: ${response.status} ${response.statusText}`);
       throw new Error(`CryptoPanic API error: ${response.status} ${response.statusText}`);
     }
     
@@ -152,6 +178,7 @@ app.get('/api/news', async (req, res) => {
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
+  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] /api/health request received from:`, req.headers.origin);
   res.status(200).json({ 
     status: 'OK', 
     timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' }),
@@ -172,4 +199,4 @@ app.use((err, req, res, next) => {
 });
 
 module.exports.handler = serverless(app);
-module.exports.supabase = supabase; // Export supabase client for use in other modules
+module.exports.supabase = supabase;
