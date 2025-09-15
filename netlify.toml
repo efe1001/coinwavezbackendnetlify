@@ -1,21 +1,39 @@
 [build]
-  functions = "."  # Point to root directory where index.js is located
+  publish = "."
+  functions = "functions"
+
+[build.environment]
+  NODE_VERSION = "18"
 
 [functions]
-  external_node_modules = ["express", "mongoose", "bcryptjs", "jsonwebtoken", "cors", "dotenv", "firebase-admin", "multer", "node-fetch", "indexless-http"]
-  node_bundler = "esbuild"
+  node_bundle = true
+  external_node_modules = ["mongoose", "mongodb", "express", "cors", "dotenv", "@supabase/supabase-js", "node-fetch", "serverless-http"]
 
+# Redirect all API requests to the serverless function
 [[redirects]]
   from = "/api/*"
-  to = "/.netlify/functions/index/:splat"  # Point to index.js
+  to = "/.netlify/functions/api/:splat"
   status = 200
 
+# For SPA routing - redirect all non-API requests to index.html
 [[redirects]]
-  from = "/uploads/*"
-  to = "/.netlify/functions/index/:splat"  # Point to index.js
+  from = "/*"
+  to = "/index.html"
   status = 200
 
-[[redirects]]
-  from = "/"
-  to = "/.netlify/functions/index"  # Redirect root to index.js
-  status = 200
+# Handle preflight requests for CORS
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Headers = "Content-Type, Authorization"
+    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+
+# Security headers for all responses
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
