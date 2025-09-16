@@ -2,13 +2,12 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const path = require('path');
-const fs = require('fs');
+const fs = require('fs').promises; // Use promises for async
 const multer = require('multer');
 const { submitCoin, getCoins, getAllCoins, getPendingCoins, approveCoin, rejectCoin, promoteCoin, unpromoteCoin, editCoin, deleteCoin, getCoinById, getPromotedCoins, uploadBanner, deleteBanner, getBanners, getNewCoins, getPresaleCoins, boostCoin } = require('../controllers/coinController');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key_1234567890';
 
-// Middleware to verify JWT token
 const verifyToken = (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
   console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Token received:`, token);
@@ -27,7 +26,6 @@ const verifyToken = (req, res, next) => {
   }
 };
 
-// Middleware to verify admin role
 const verifyAdmin = (req, res, next) => {
   if (!req.user || req.user.role !== 'admin') {
     return res.status(403).json({ message: 'Admin access required' });
@@ -35,7 +33,6 @@ const verifyAdmin = (req, res, next) => {
   next();
 };
 
-// Middleware to verify user or admin role
 const verifyUser = (req, res, next) => {
   if (!req.user || (req.user.role !== 'user' && req.user.role !== 'admin')) {
     return res.status(403).json({ message: 'User access required' });
@@ -43,14 +40,11 @@ const verifyUser = (req, res, next) => {
   next();
 };
 
-// Configure Multer for file uploads
-const uploadDir = path.join(__dirname, '../Uploads');
+const uploadDir = '/tmp/Uploads';
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
+  destination: async (req, file, cb) => {
     try {
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-      }
+      await fs.mkdir(uploadDir, { recursive: true });
       cb(null, uploadDir);
     } catch (err) {
       console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Error creating Uploads directory:`, err);
@@ -64,7 +58,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({
   storage,
-  limits: { fileSize: 1 * 1024 * 1024 }, // 1MB limit
+  limits: { fileSize: 1 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] File upload attempt:`, {
@@ -80,13 +74,12 @@ const upload = multer({
   }
 });
 
-// Routes
-router.get('/coins', getCoins); // Public
-router.get('/coins/:id', getCoinById); // Public
-router.get('/promoted', getPromotedCoins); // Public
-router.get('/new-coins', getNewCoins); // Public
-router.get('/presales', getPresaleCoins); // Public
-router.get('/banners', getBanners); // Public
+router.get('/coins', getCoins);
+router.get('/coins/:id', getCoinById);
+router.get('/promoted', getPromotedCoins);
+router.get('/new-coins', getNewCoins);
+router.get('/presales', getPresaleCoins);
+router.get('/banners', getBanners);
 router.post('/submit-coin', verifyToken, verifyUser, upload.single('logo'), submitCoin);
 router.get('/all-coins', verifyToken, verifyAdmin, getAllCoins);
 router.get('/pending-coins', verifyToken, verifyAdmin, getPendingCoins);

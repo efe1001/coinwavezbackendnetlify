@@ -9,6 +9,7 @@ const paymentRoutes = require('./routes/paymentRoutes');
 const bannerRoutes = require('./routes/bannerRoutes');
 const fetch = require('node-fetch');
 const serverless = require('serverless-http');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -28,23 +29,45 @@ if (!supabaseUrl || !supabaseAnonKey) {
   }
 }
 
-// MongoDB Connection with status tracking
+// MongoDB Connection with retry logic
 let mongoConnected = false;
 
-mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => {
-    mongoConnected = true;
-    console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB connected successfully`);
-  })
-  .catch(err => {
-    mongoConnected = false;
-    console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB connection error:`, err.message);
-  });
+const connectMongoDB = async () => {
+  const maxAttempts = 3;
+  let attempts = 0;
+
+  while (attempts < maxAttempts) {
+    try {
+      await mongoose.connect(process.env.MONGODB_URI, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+        serverSelectionTimeoutMS: 5000
+      });
+      mongoConnected = true;
+      console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB connected successfully`);
+      return;
+    } catch (err) {
+      attempts++;
+      console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB connection attempt ${attempts} failed:`, err.message);
+      if (attempts === maxAttempts) {
+        mongoConnected = false;
+        console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Max MongoDB connection attempts reached`);
+        return;
+      }
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+  }
+};
+
+connectMongoDB();
 
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '1gb' }));
 app.use(express.urlencoded({ extended: true, limit: '1gb' }));
+
+// Serve static files from /tmp/Uploads for Netlify
+app.use('/uploads', express.static('/tmp/Uploads'));
 
 // Routes
 app.use('/api', authRoutes);
@@ -54,6 +77,7 @@ app.use('/api/banners', bannerRoutes);
 
 // Root endpoint with connection status
 app.get('/', (req, res) => {
+  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Root endpoint accessed`);
   const status = {
     message: mongoConnected ? 'MongoDB connected successfully' : 'MongoDB not connected',
     mongodb: mongoConnected ? 'connected' : 'not connected',
@@ -109,7 +133,7 @@ app.get('/api/news', async (req, res) => {
     
     res.status(200).json({ results: enhancedResults });
   } catch (error) {
-    console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Error fetching news:`, error);
+    console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Error fetching news:`, error.message);
     res.status(200).json({ 
       results: [
         {
@@ -159,6 +183,7 @@ app.get('/api/news', async (req, res) => {
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
+  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Health endpoint accessed`);
   const netlify = process.env.NETLIFY ? 'Yes' : 'No';
   const functionRegion = process.env.AWS_REGION || 'Unknown';
   
@@ -176,6 +201,7 @@ app.get('/api/health', (req, res) => {
 
 // Catch-all route for undefined endpoints
 app.use((req, res) => {
+  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] 404: Endpoint not found: ${req.originalUrl}`);
   res.status(404).json({ 
     message: "Endpoint not found. Use /api/* for available routes.",
     timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })
@@ -187,7 +213,7 @@ app.use((err, req, res, next) => {
   console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Server error:`, {
     message: err.message,
     stack: err.stack,
-    path: req.path
+    path: req.originalUrl
   });
   
   res.status(500).json({ message: 'Server error', error: err.message });
@@ -211,5 +237,3 @@ if (process.env.NETLIFY_DEV !== 'true') {
     }
   });
 }
-
-
