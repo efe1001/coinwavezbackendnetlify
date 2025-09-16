@@ -43,7 +43,7 @@ connectDB().catch((error) => {
 });
 
 // Middleware
-app.use(cors({ origin: ['https://coinswavez.com', 'https://www.coinswavez.com'] }));
+app.use(cors({ origin: ['https://coinswavez.com', 'https://www.coinswavez.com'], credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use((req, res, next) => {
@@ -54,7 +54,7 @@ app.use((req, res, next) => {
 // Simple test route
 app.get(['/', '/.netlify/functions/api'], (req, res) => {
   console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Handling root route: ${req.path}`);
-  res.status(200).json({ 
+  const response = { 
     message: 'CoinWaveZ API is working!',
     baseUrl: process.env.APP_BASE_URL || 'https://coinwavezbackend.netlify.app',
     timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' }),
@@ -69,7 +69,9 @@ app.get(['/', '/.netlify/functions/api'], (req, res) => {
       login: '/api/login',
       payments: '/api/payments/create'
     }
-  });
+  };
+  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Sending response:`, response);
+  res.status(200).json(response);
 });
 
 // Auth routes

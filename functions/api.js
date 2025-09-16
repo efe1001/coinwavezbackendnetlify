@@ -6,5 +6,11 @@ module.exports.handler = async (event, context) => {
   // Normalize path: remove "/.netlify/functions/api" prefix
   event.path = event.path.replace('/.netlify/functions/api', '') || '/';
   console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Normalized path: ${event.path}`);
-  return serverless(app)(event, context);
+  
+  const response = await serverless(app)(event, context);
+  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Response:`, {
+    statusCode: response.statusCode,
+    body: response.body
+  });
+  return response;
 };
