@@ -46,17 +46,17 @@ app.use(async (req, res, next) => {
 app.use((req, res, next) => {
   // Store the original URL for reference
   req.originalFunctionPath = req.url;
-  
+
   // Remove the function prefix from the path
   if (req.url.startsWith('/.netlify/functions/api')) {
     req.url = req.url.replace('/.netlify/functions/api', '');
   }
-  
+
   // If the path is empty after removal, set it to root
   if (req.url === '') {
     req.url = '/';
   }
-  
+
   console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Original path: ${req.originalFunctionPath}, Processed path: ${req.url}`);
   next();
 });
