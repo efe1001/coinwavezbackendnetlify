@@ -42,6 +42,25 @@ app.use(async (req, res, next) => {
   next();
 });
 
+// Middleware to fix paths for Netlify Functions
+app.use((req, res, next) => {
+  // Store the original URL for reference
+  req.originalFunctionPath = req.url;
+  
+  // Remove the function prefix from the path
+  if (req.url.startsWith('/.netlify/functions/api')) {
+    req.url = req.url.replace('/.netlify/functions/api', '');
+  }
+  
+  // If the path is empty after removal, set it to root
+  if (req.url === '') {
+    req.url = '/';
+  }
+  
+  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Original path: ${req.originalFunctionPath}, Processed path: ${req.url}`);
+  next();
+});
+
 // Root endpoint for the function
 app.get('/', (req, res) => {
   const isMongoConnected = mongoose.connection.readyState === 1;
@@ -51,9 +70,14 @@ app.get('/', (req, res) => {
     mongodb: isMongoConnected ? 'connected' : 'disconnected',
     supabase: !!supabase ? 'connected' : 'disconnected',
     endpoints: {
-      news: '/news',
-      health: '/health',
-      // Add other endpoints that are defined in this function
+      news: '/.netlify/functions/api/news',
+      health: '/.netlify/functions/api/health',
+      api_root: '/.netlify/functions/api'
+    },
+    redirects: {
+      news: '/api/news',
+      health: '/api/health', 
+      api_root: '/api'
     }
   });
 });
@@ -65,7 +89,9 @@ app.get('/health', (req, res) => {
     status: 'OK', 
     timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' }),
     mongodbConnected: isMongoConnected,
-    supabaseConnected: !!supabase
+    supabaseConnected: !!supabase,
+    originalPath: req.originalFunctionPath,
+    processedPath: req.url
   });
 });
 
@@ -110,7 +136,11 @@ app.get('/news', async (req, res) => {
       };
     });
     
-    res.status(200).json({ results: enhancedResults });
+    res.status(200).json({ 
+      results: enhancedResults,
+      originalPath: req.originalFunctionPath,
+      processedPath: req.url
+    });
   } catch (error) {
     console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Error fetching news:`, error.message);
     
@@ -126,13 +156,15 @@ app.get('/news', async (req, res) => {
         },
         {
           id: 2,
-          title: "Ehereum 2.0 Upgrade Scheduled for December Launch",
+          title: "Ethereum 2.0 Upgrade Scheduled for December Launch",
           published_at: new Date().toISOString(),
           url: "https://cryptopanic.com/news/2",
           source: { title: "CoinDesk" },
           preview: "The long-awaited Ethereum 2.0 upgrade..."
         }
-      ]
+      ],
+      originalPath: req.originalFunctionPath,
+      processedPath: req.url
     });
   }
 });
@@ -140,8 +172,17 @@ app.get('/news', async (req, res) => {
 // Handle 404 for this specific function
 app.use((req, res) => {
   res.status(404).json({ 
-    message: `Endpoint ${req.path} not found in API function`,
-    availableEndpoints: ['/', '/health', '/news']
+    message: `Endpoint ${req.originalFunctionPath} not found`,
+    availableEndpoints: [
+      '/.netlify/functions/api',
+      '/.netlify/functions/api/health',
+      '/.netlify/functions/api/news'
+    ],
+    availableRedirects: [
+      '/api',
+      '/api/health', 
+      '/api/news'
+    ]
   });
 });
 
