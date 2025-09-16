@@ -30,11 +30,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
   }
 }
 
-// MongoDB Connection with retry logic
+// MongoDB Connection with extended retry logic
 let mongoConnected = false;
 
 const connectMongoDB = async () => {
-  const maxAttempts = 5;
+  const maxAttempts = 10; // Increased from 5
   let attempts = 0;
 
   while (attempts < maxAttempts) {
@@ -54,7 +54,7 @@ const connectMongoDB = async () => {
         console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Max MongoDB connection attempts reached`);
         return;
       }
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await new Promise(resolve => setTimeout(resolve, 5000)); // Increased from 3000ms
     }
   }
 };
