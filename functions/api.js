@@ -1,35 +1,54 @@
+require('dotenv').config();
 const express = require('express');
+const serverless = require('serverless-http');
+const cors = require('cors');
 const mongoose = require('mongoose');
 const { createClient } = require('@supabase/supabase-js');
+const authRoutes = require('../routes/authRoutes');
+const coinRoutes = require('../routes/coinRoutes');
+const paymentRoutes = require('../routes/paymentRoutes');
+const bannerRoutes = require('../routes/bannerRoutes');
 const fetch = require('node-fetch');
 
-// Create a new Express app just for the serverless function
 const app = express();
 
 // Initialize Supabase client
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
-const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Supabase configuration error: Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY`);
+  throw new Error('Supabase configuration is incomplete. Check your environment variables.');
+}
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// MongoDB Connection
+// MongoDB Connection with timeout handling
 const connectDB = async () => {
   try {
     if (mongoose.connection.readyState === 0) {
-      await mongoose.connect(process.env.MONGODB_URI);
+      await mongoose.connect(process.env.MONGODB_URI, {
+        serverSelectionTimeoutMS: 10000, // 10 second timeout
+        socketTimeoutMS: 45000,
+      });
       console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB connected`);
     }
+    return true;
   } catch (err) {
     console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB connection error:`, err.message);
+    return false;
   }
 };
 
 // Enhanced CORS configuration
-app.use(require('cors')({
+app.use(cors({
   origin: [
     'https://coinswavez.com',
     'https://www.coinswavez.com',
     'http://localhost:5173',
-    'https://localhost:5173'
+    'https://localhost:5173',
+    'http://localhost:3000',
+    'https://localhost:3000',
+    'http://localhost:3002',
+    'https://localhost:3002'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -38,7 +57,22 @@ app.use(require('cors')({
 
 // Additional CORS headers for all responses
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', req.headers.origin || 'https://coinswavez.com');
+  const allowedOrigins = [
+    'https://coinswavez.com',
+    'https://www.coinswavez.com',
+    'http://localhost:5173',
+    'https://localhost:5173',
+    'http://localhost:3000',
+    'https://localhost:3000',
+    'http://localhost:3002',
+    'https://localhost:3002'
+  ];
+  
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Credentials', 'true');
@@ -51,13 +85,31 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(require('express').json({ limit: '10mb' }));
-app.use(require('express').urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Connect to MongoDB on each request
-app.use(async (req, res, next) => {
-  await connectDB();
+// Add request logging middleware
+app.use((req, res, next) => {
+  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Request: ${req.method} ${req.url}`);
   next();
+});
+
+// Connect to MongoDB on each request with timeout
+app.use(async (req, res, next) => {
+  try {
+    const dbConnected = await Promise.race([
+      connectDB(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('MongoDB connection timeout')), 5000))
+    ]);
+    
+    if (!dbConnected) {
+      console.warn(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB not connected, proceeding anyway`);
+    }
+    next();
+  } catch (error) {
+    console.warn(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB connection timeout, proceeding anyway`);
+    next();
+  }
 });
 
 // Middleware to fix paths for Netlify Functions
@@ -79,8 +131,8 @@ app.use((req, res, next) => {
   next();
 });
 
-// Root endpoint for the function
-app.get('/', (req, res) => {
+// Handle root path requests
+app.get(['/', '/api'], async (req, res) => {
   const isMongoConnected = mongoose.connection.readyState === 1;
   res.status(200).json({ 
     message: 'CoinWaveZ API is working!',
@@ -88,16 +140,13 @@ app.get('/', (req, res) => {
     mongodb: isMongoConnected ? 'connected' : 'disconnected',
     supabase: !!supabase ? 'connected' : 'disconnected',
     endpoints: {
-      news: '/.netlify/functions/api/news',
-      health: '/.netlify/functions/api/health',
-      coins: '/.netlify/functions/api/coins',
-      api_root: '/.netlify/functions/api'
-    },
-    redirects: {
       news: '/api/news',
-      health: '/api/health', 
+      health: '/api/health',
       coins: '/api/coins',
-      api_root: '/api'
+      banners: '/api/banners',
+      payments: '/api/payments',
+      register: '/api/register',
+      login: '/api/login'
     }
   });
 });
@@ -109,27 +158,8 @@ app.get('/health', (req, res) => {
     status: 'OK', 
     timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' }),
     mongodbConnected: isMongoConnected,
-    supabaseConnected: !!supabase,
-    originalPath: req.originalFunctionPath,
-    processedPath: req.url
+    supabaseConnected: !!supabase
   });
-});
-
-// Coins endpoint
-app.get('/coins', (req, res) => {
-  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Fetching coins`);
-  
-  // Placeholder response - replace with your actual coin data logic
-  res.status(200).json([
-    { id: 1, name: 'Bitcoin', symbol: 'BTC', price: 50000, change24h: 2.5 },
-    { id: 2, name: 'Ethereum', symbol: 'ETH', price: 3000, change24h: 1.8 },
-    { id: 3, name: 'Solana', symbol: 'SOL', price: 150, change24h: 5.2 },
-    { id: 4, name: 'Cardano', symbol: 'ADA', price: 0.5, change24h: -0.3 },
-    { id: 5, name: 'Binance Coin', symbol: 'BNB', price: 350, change24h: 0.7 },
-    { id: 6, name: 'Ripple', symbol: 'XRP', price: 0.6, change24h: -1.2 },
-    { id: 7, name: 'Polkadot', symbol: 'DOT', price: 7.5, change24h: 3.1 },
-    { id: 8, name: 'Dogecoin', symbol: 'DOGE', price: 0.15, change24h: 8.5 }
-  ]);
 });
 
 // CryptoPanic News API Proxy Endpoint
@@ -150,37 +180,44 @@ app.get('/news', async (req, res) => {
       apiUrl += `&region=${region}`;
     }
     
-    const response = await fetch(apiUrl);
+    // Add timeout to external API call
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000); // 10 second timeout
     
-    if (!response.ok) {
-      throw new Error(`CryptoPanic API error: ${response.status} ${response.statusText}`);
-    }
-    
-    const data = await response.json();
-    
-    const enhancedResults = data.results.map(item => {
-      let previewText = "Click to read full article";
-      if (item.title.toLowerCase().includes('bitcoin')) {
-        previewText = "Bitcoin continues to dominate the cryptocurrency market with recent developments...";
-      } else if (item.title.toLowerCase().includes('ethereum')) {
-        previewText = "Ethereum network upgrades and DeFi developments are shaping the future of blockchain...";
+    try {
+      const response = await fetch(apiUrl, { signal: controller.signal });
+      clearTimeout(timeout);
+      
+      if (!response.ok) {
+        throw new Error(`CryptoPanic API error: ${response.status} ${response.statusText}`);
       }
       
-      return {
-        ...item,
-        preview: previewText,
-        url: item.url || `https://cryptopanic.com/news/${item.id}/`
-      };
-    });
-    
-    res.status(200).json({ 
-      results: enhancedResults,
-      originalPath: req.originalFunctionPath,
-      processedPath: req.url
-    });
+      const data = await response.json();
+      
+      const enhancedResults = data.results.map(item => {
+        let previewText = "Click to read full article";
+        if (item.title.toLowerCase().includes('bitcoin')) {
+          previewText = "Bitcoin continues to dominate the cryptocurrency market with recent developments...";
+        } else if (item.title.toLowerCase().includes('ethereum')) {
+          previewText = "Ethereum network upgrades and DeFi developments are shaping the future of blockchain...";
+        }
+        
+        return {
+          ...item,
+          preview: previewText,
+          url: item.url || `https://cryptopanic.com/news/${item.id}/`
+        };
+      });
+      
+      res.status(200).json({ results: enhancedResults });
+    } catch (fetchError) {
+      clearTimeout(timeout);
+      throw fetchError;
+    }
   } catch (error) {
     console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Error fetching news:`, error.message);
     
+    // Return fallback data instead of error
     res.status(200).json({ 
       results: [
         {
@@ -199,17 +236,38 @@ app.get('/news', async (req, res) => {
           source: { title: "CoinDesk" },
           preview: "The long-awaited Ethereum 2.0 upgrade..."
         }
-      ],
-      originalPath: req.originalFunctionPath,
-      processedPath: req.url
+      ]
     });
   }
 });
 
-// Handle 404 for this specific function
+// Import and use your routes
+app.use('/api', authRoutes);
+app.use('/api', coinRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/banners', bannerRoutes);
+
+// Also support the netlify functions path for all routes
+app.use('/.netlify/functions/api', authRoutes);
+app.use('/.netlify/functions/api', coinRoutes);
+app.use('/.netlify/functions/api/payments', paymentRoutes);
+app.use('/.netlify/functions/api/banners', bannerRoutes);
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Server error:`, {
+    message: err.message,
+    path: req.path
+  });
+  
+  res.status(500).json({ message: 'Server error', error: err.message });
+});
+
+// Handle 404
 app.use((req, res) => {
+  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] 404 for route: ${req.originalFunctionPath}`);
   res.status(404).json({ 
-    message: `Endpoint ${req.originalFunctionPath} not found`,
+    message: `Route ${req.originalFunctionPath} not found`,
     availableEndpoints: [
       '/.netlify/functions/api',
       '/.netlify/functions/api/health',
@@ -225,5 +283,33 @@ app.use((req, res) => {
   });
 });
 
-// Export the handler
-module.exports.handler = require('serverless-http')(app);
+// Export the serverless function
+const handler = serverless(app);
+
+// Wrap the handler to add timeout protection
+module.exports.handler = async (event, context) => {
+  // Set timeout to 25 seconds to avoid Netlify's 30 second timeout
+  context.callbackWaitsForEmptyEventLoop = false;
+  
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error('Function timeout')), 25000);
+  });
+
+  try {
+    const result = await Promise.race([
+      handler(event, context),
+      timeoutPromise
+    ]);
+    return result;
+  } catch (error) {
+    console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Function error:`, error.message);
+    
+    return {
+      statusCode: error.message.includes('timeout') ? 504 : 500,
+      body: JSON.stringify({
+        message: error.message.includes('timeout') ? 'Request timeout' : 'Server error',
+        error: error.message
+      })
+    };
+  }
+};
