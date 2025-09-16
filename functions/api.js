@@ -131,6 +131,12 @@ app.use((req, res, next) => {
   next();
 });
 
+// Add Supabase client to all requests
+app.use((req, res, next) => {
+  req.supabase = supabase;
+  next();
+});
+
 // Handle root path requests
 app.get(['/', '/api'], async (req, res) => {
   const isMongoConnected = mongoose.connection.readyState === 1;
