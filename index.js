@@ -10,37 +10,44 @@ const jwt = require('jsonwebtoken');
 const app = express();
 
 // Initialize Supabase client
-const supabaseUrl = process.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://cgyjbbuwiykxmsirigsp.supabase.co';
+const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNneWpiYnV3aXlreG1zaXJpZ3NwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3ODc4NjksImV4cCI6MjA3MzM2Mzg2OX0.bbaW1VutO8acWD0n_m_yWaH0zkVS8w0iBXA5otYbxqM';
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Supabase configuration warning: Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY`);
 }
 const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 // Validate JWT_SECRET
-const jwtSecret = process.env.JWT_SECRET;
+const jwtSecret = process.env.JWT_SECRET || 'your_jwt_secret_key_1234567890';
 if (!jwtSecret || jwtSecret === 'your_jwt_secret_key_1234567890') {
   console.warn(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] JWT_SECRET is missing or using default placeholder; /api/login may not work`);
+}
+
+// Validate APP_BASE_URL
+const appBaseUrl = process.env.APP_BASE_URL || 'http://localhost:3002';
+if (appBaseUrl === 'http://localhost:') {
+  console.warn(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] APP_BASE_URL is incomplete; defaulting to http://localhost:3002`);
 }
 
 // Connect to MongoDB with timeout
 const connectDB = async () => {
   try {
     if (mongoose.connection.readyState === 0) {
-      if (!process.env.MONGODB_URI) {
+      const mongodbUri = process.env.MONGODB_URI || 'mongodb+srv://asoefe101:computer11@cluster0.ewrktzr.mongodb.net/crypto_db?retryWrites=true&w=majority&appName=Cluster0';
+      if (!mongodbUri) {
         console.warn(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MONGODB_URI is missing; MongoDB features will be disabled`);
-        return;
+        return false;
       }
-      await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 5000 });
+      await mongoose.connect(mongodbUri, { serverSelectionTimeoutMS: 5000 });
       console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB connected successfully`);
+      return true;
     }
+    return true;
   } catch (error) {
     console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB connection error:`, error);
+    return false;
   }
 };
-connectDB().catch((error) => {
-  console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Failed to connect to MongoDB:`, error);
-});
 
 // Middleware
 app.use(cors({ origin: ['https://coinswavez.com', 'https://www.coinswavez.com'], credentials: true }));
@@ -52,13 +59,14 @@ app.use((req, res, next) => {
 });
 
 // Simple test route
-app.get(['/', '/.netlify/functions/api'], (req, res) => {
+app.get(['/', '/api'], async (req, res) => {
   console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Handling root route: ${req.path}`);
+  const isMongoConnected = await connectDB();
   const response = { 
     message: 'CoinWaveZ API is working!',
-    baseUrl: process.env.APP_BASE_URL || 'https://coinwavezbackend.netlify.app',
+    baseUrl: appBaseUrl,
     timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' }),
-    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    mongodb: isMongoConnected ? 'connected' : 'disconnected',
     supabase: supabase ? 'connected' : 'disconnected',
     endpoints: {
       news: '/api/news',
@@ -94,7 +102,7 @@ app.post('/api/login', (req, res) => {
 
 // Coin routes
 app.get('/api/coins', async (req, res) => {
-  const coinbaseApiKey = process.env.COINBASE_API_KEY;
+  const coinbaseApiKey = process.env.COINBASE_API_KEY || 'your_coinbase_api_key';
   if (coinbaseApiKey && coinbaseApiKey !== 'your_coinbase_api_key') {
     // Placeholder: Fetch coin prices from Coinbase
     try {
@@ -126,7 +134,7 @@ app.get('/api/coins', async (req, res) => {
 
 // Payment routes
 app.post('/api/payments/create', (req, res) => {
-  const coinbaseWebhookSecret = process.env.COINBASE_WEBHOOK_SECRET;
+  const coinbaseWebhookSecret = process.env.COINBASE_WEBHOOK_SECRET || 'your_coinbase_webhook_secret';
   if (!coinbaseWebhookSecret || coinbaseWebhookSecret === 'your_coinbase_webhook_secret') {
     console.warn(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] COINBASE_WEBHOOK_SECRET is missing or using default placeholder`);
   }
@@ -149,7 +157,7 @@ app.get('/api/banners', (req, res) => {
 app.get('/api/news', async (req, res) => {
   console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Fetching news from CryptoPanic`);
   try {
-    const API_KEY = process.env.CRYPTOPANIC_API_KEY;
+    const API_KEY = process.env.CRYPTOPANIC_API_KEY || 'your_cryptopanic_api_key';
     if (!API_KEY || API_KEY === 'your_cryptopanic_api_key') {
       throw new Error('CryptoPanic API key is missing or using default placeholder');
     }
@@ -175,7 +183,7 @@ app.get('/api/news', async (req, res) => {
     
     const enhancedResults = data.results.map(item => {
       let previewText = "Click to read full article";
-      if (item.title.toLowerCase().includes('bitcoin')) {
+      if (item.title.toLowerCase().Includes('bitcoin')) {
         previewText = "Bitcoin continues to dominate the cryptocurrency market with recent developments...";
       } else if (item.title.toLowerCase().includes('ethereum')) {
         previewText = "Ethereum network upgrades and DeFi developments are shaping the future of blockchain...";
@@ -203,7 +211,7 @@ app.get('/api/news', async (req, res) => {
           published_at: new Date().toISOString(),
           url: "https://cryptopanic.com/news/1",
           source: { title: "CryptoPanic" },
-          preview: "Bitcoin has reached a new all-time high as institutional investors continue to show strong interest in cryptocurrency investments."
+          preview: "Bitcoin has reached a new all-time high..."
         },
         {
           id: 2,
@@ -211,7 +219,7 @@ app.get('/api/news', async (req, res) => {
           published_at: new Date().toISOString(),
           url: "https://cryptopanic.com/news/2",
           source: { title: "CoinDesk" },
-          preview: "The long-awaited Ethereum 2.0 upgrade is set to launch in December, bringing proof-of-stake consensus and scalability improvements."
+          preview: "The long-awaited Ethereum 2.0 upgrade..."
         }
       ]
     });
@@ -220,10 +228,11 @@ app.get('/api/news', async (req, res) => {
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
+  const isMongoConnected = mongoose.connection.readyState === 1;
   res.status(200).json({ 
     status: 'OK', 
     timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' }),
-    mongodbConnected: mongoose.connection.readyState === 1,
+    mongodbConnected: isMongoConnected,
     supabaseConnected: !!supabase
   });
 });
