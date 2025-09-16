@@ -216,7 +216,7 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ 
     status: 'OK', 
     timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' }),
-    mongodbConnected: mongoConnected,
+    mongodbConnected: mongoose.connection.readyState === 1,
     supabaseConnected: !!supabase,
     environment: process.env.NODE_ENV || 'development',
     runningOnNetlify: netlify,
@@ -252,7 +252,7 @@ module.exports.handler = serverless(app);
 if (process.env.NETLIFY_DEV !== 'true') {
   app.listen(PORT, () => {
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Server running on http://localhost:${PORT}`);
-    console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB status: ${mongoConnected ? 'CONNECTED' : 'NOT CONNECTED'}`);
+    console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB status: ${mongoose.connection.readyState === 1 ? 'CONNECTED' : 'NOT CONNECTED'}`);
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Payment endpoints available at http://localhost:${PORT}/api/payments`);
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] News endpoint available at http://localhost:${PORT}/api/news`);
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Banner endpoints available at http://localhost:${PORT}/api/banners`);
