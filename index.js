@@ -20,8 +20,8 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Validate JWT_SECRET
 const jwtSecret = process.env.JWT_SECRET;
-if (!jwtSecret) {
-  console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] JWT_SECRET is missing`);
+if (!jwtSecret || jwtSecret === 'your_jwt_secret_key_1234567890') {
+  console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] JWT_SECRET is missing or using default placeholder`);
   throw new Error('JWT_SECRET is required for authentication');
 }
 
@@ -49,7 +49,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.get('/', (req, res) => {
   res.status(200).json({ 
     message: 'CoinWaveZ API is working!',
-    baseUrl: process.env.APP_BASE_URL,
+    baseUrl: process.env.APP_BASE_URL || 'https://coinwavezbackend.netlify.app',
     timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' }),
     mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
     endpoints: {
@@ -80,7 +80,7 @@ app.post('/api/login', (req, res) => {
 app.get('/api/coins', async (req, res) => {
   // Placeholder: Use COINBASE_API_KEY for real data
   const coinbaseApiKey = process.env.COINBASE_API_KEY;
-  if (coinbaseApiKey) {
+  if (coinbaseApiKey && coinbaseApiKey !== 'your_coinbase_api_key') {
     // Example: Fetch coin prices from Coinbase (implement as needed)
     // const response = await fetch('https://api.coinbase.com/v2/prices/spot', {
     //   headers: { Authorization: `Bearer ${coinbaseApiKey}` }
@@ -102,6 +102,10 @@ app.get('/api/coins', async (req, res) => {
 // Payment routes
 app.post('/api/payments/create', (req, res) => {
   // Placeholder: Use COINBASE_WEBHOOK_SECRET for payment verification
+  const coinbaseWebhookSecret = process.env.COINBASE_WEBHOOK_SECRET;
+  if (!coinbaseWebhookSecret || coinbaseWebhookSecret === 'your_coinbase_webhook_secret') {
+    console.warn(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] COINBASE_WEBHOOK_SECRET is missing or using default placeholder`);
+  }
   res.status(201).json({ 
     message: 'Payment created successfully',
     paymentId: 'pay_' + Math.random().toString(36).substr(2, 9)
@@ -121,8 +125,8 @@ app.get('/api/news', async (req, res) => {
   console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Fetching news from CryptoPanic`);
   try {
     const API_KEY = process.env.CRYPTOPANIC_API_KEY;
-    if (!API_KEY) {
-      throw new Error('CryptoPanic API key is missing');
+    if (!API_KEY || API_KEY === 'your_cryptopanic_api_key') {
+      throw new Error('CryptoPanic API key is missing or using default placeholder');
     }
     const { kind = 'news', currencies, region, filter = 'rising' } = req.query;
     
