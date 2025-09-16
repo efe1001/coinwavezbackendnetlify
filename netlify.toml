@@ -1,18 +1,10 @@
 [build]
-  publish = "."
   functions = "functions"
 
 [build.environment]
   NODE_VERSION = "18"
 
-# API routes
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
-  status = 200
-
-# Root path should show index.html
-[[redirects]]
-  from = "/"
-  to = "/index.html"
   status = 200
