@@ -79,6 +79,24 @@ app.use(async (req, res, next) => {
   }
 });
 
+// Handle root path requests
+app.get(['/', '/.netlify/functions/api'], async (req, res) => {
+  const isMongoConnected = mongoose.connection.readyState === 1;
+  res.status(200).json({ 
+    message: 'CoinWaveZ API is working!',
+    timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' }),
+    mongodb: isMongoConnected ? 'connected' : 'disconnected',
+    supabase: !!supabase ? 'connected' : 'disconnected',
+    endpoints: {
+      news: '/api/news',
+      health: '/api/health',
+      coins: '/api/coins',
+      banners: '/api/banners',
+      payments: '/api/payments'
+    }
+  });
+});
+
 // Simple test route - handle both paths
 app.get(['/api', '/.netlify/functions/api'], async (req, res) => {
   const isMongoConnected = mongoose.connection.readyState === 1;
