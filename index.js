@@ -13,22 +13,24 @@ const app = express();
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Supabase configuration error: Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY`);
-  throw new Error('Supabase configuration is incomplete. Check your environment variables.');
+  console.warn(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Supabase configuration warning: Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY`);
 }
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 // Validate JWT_SECRET
 const jwtSecret = process.env.JWT_SECRET;
 if (!jwtSecret || jwtSecret === 'your_jwt_secret_key_1234567890') {
-  console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] JWT_SECRET is missing or using default placeholder`);
-  throw new Error('JWT_SECRET is required for authentication');
+  console.warn(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] JWT_SECRET is missing or using default placeholder; /api/login may not work`);
 }
 
 // Connect to MongoDB once at startup
 const connectDB = async () => {
   try {
     if (mongoose.connection.readyState === 0) {
+      if (!process.env.MONGODB_URI) {
+        console.warn(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MONGODB_URI is missing; MongoDB features will be disabled`);
+        return;
+      }
       await mongoose.connect(process.env.MONGODB_URI);
       console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB connected successfully`);
     }
@@ -52,6 +54,7 @@ app.get('/', (req, res) => {
     baseUrl: process.env.APP_BASE_URL || 'https://coinwavezbackend.netlify.app',
     timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' }),
     mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    supabase: supabase ? 'connected' : 'disconnected',
     endpoints: {
       news: '/api/news',
       health: '/api/health',
@@ -65,12 +68,18 @@ app.get('/', (req, res) => {
 });
 
 // Auth routes
-app.post('/api/register', (req, res) => {
+app.post('/api/register', async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({ message: 'Supabase is not configured; registration unavailable' });
+  }
   // Placeholder: Implement user registration with Supabase or MongoDB
   res.status(201).json({ message: 'User registered successfully' });
 });
 
 app.post('/api/login', (req, res) => {
+  if (!jwtSecret || jwtSecret === 'your_jwt_secret_key_1234567890') {
+    return res.status(503).json({ message: 'Authentication is not configured; please contact support' });
+  }
   // Placeholder: Implement actual user authentication
   const token = jwt.sign({ userId: 'sample_user_id' }, jwtSecret, { expiresIn: '1h' });
   res.status(200).json({ message: 'User logged in successfully', token });
@@ -78,20 +87,29 @@ app.post('/api/login', (req, res) => {
 
 // Coin routes
 app.get('/api/coins', async (req, res) => {
-  // Placeholder: Use COINBASE_API_KEY for real data
   const coinbaseApiKey = process.env.COINBASE_API_KEY;
   if (coinbaseApiKey && coinbaseApiKey !== 'your_coinbase_api_key') {
-    // Example: Fetch coin prices from Coinbase (implement as needed)
-    // const response = await fetch('https://api.coinbase.com/v2/prices/spot', {
-    //   headers: { Authorization: `Bearer ${coinbaseApiKey}` }
-    // });
-    // const data = await response.json();
-    // res.status(200).json(data);
-    res.status(200).json([
-      { id: 1, name: 'Bitcoin', symbol: 'BTC', price: 50000 },
-      { id: 2, name: 'Ethereum', symbol: 'ETH', price: 3000 }
-    ]);
+    // Placeholder: Fetch coin prices from Coinbase
+    try {
+      // Example: Uncomment to integrate Coinbase API
+      // const response = await fetch('https://api.coinbase.com/v2/prices/spot', {
+      //   headers: { Authorization: `Bearer ${coinbaseApiKey}` }
+      // });
+      // const data = await response.json();
+      // return res.status(200).json(data);
+      res.status(200).json([
+        { id: 1, name: 'Bitcoin', symbol: 'BTC', price: 50000 },
+        { id: 2, name: 'Ethereum', symbol: 'ETH', price: 3000 }
+      ]);
+    } catch (error) {
+      console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Coinbase API error:`, error);
+      res.status(200).json([
+        { id: 1, name: 'Bitcoin', symbol: 'BTC', price: 50000 },
+        { id: 2, name: 'Ethereum', symbol: 'ETH', price: 3000 }
+      ]);
+    }
   } else {
+    console.warn(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] COINBASE_API_KEY is missing or using default placeholder`);
     res.status(200).json([
       { id: 1, name: 'Bitcoin', symbol: 'BTC', price: 50000 },
       { id: 2, name: 'Ethereum', symbol: 'ETH', price: 3000 }
@@ -101,11 +119,11 @@ app.get('/api/coins', async (req, res) => {
 
 // Payment routes
 app.post('/api/payments/create', (req, res) => {
-  // Placeholder: Use COINBASE_WEBHOOK_SECRET for payment verification
   const coinbaseWebhookSecret = process.env.COINBASE_WEBHOOK_SECRET;
   if (!coinbaseWebhookSecret || coinbaseWebhookSecret === 'your_coinbase_webhook_secret') {
     console.warn(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] COINBASE_WEBHOOK_SECRET is missing or using default placeholder`);
   }
+  // Placeholder: Use COINBASE_WEBHOOK_SECRET for payment verification
   res.status(201).json({ 
     message: 'Payment created successfully',
     paymentId: 'pay_' + Math.random().toString(36).substr(2, 9)
