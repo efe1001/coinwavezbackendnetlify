@@ -16,16 +16,22 @@ const PORT = process.env.PORT || 3002;
 // Initialize Supabase client
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+let supabase = null;
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Supabase configuration error: Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY`);
-  throw new Error('Supabase configuration is incomplete. Check your .env file.');
+} else {
+  try {
+    supabase = createClient(supabaseUrl, supabaseAnonKey);
+    console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Supabase initialized successfully`);
+  } catch (error) {
+    console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Supabase initialization error:`, error.message);
+  }
 }
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // MongoDB Connection with status tracking
 let mongoConnected = false;
 
-mongoose.connect(process.env.MONGODB_URI)
+mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => {
     mongoConnected = true;
     console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB connected successfully`);
@@ -51,10 +57,9 @@ app.get('/', (req, res) => {
   const status = {
     message: mongoConnected ? 'MongoDB connected successfully' : 'MongoDB not connected',
     mongodb: mongoConnected ? 'connected' : 'not connected',
-    supabase: supabaseUrl ? 'configured' : 'not configured',
+    supabase: supabase ? 'configured' : 'not configured',
     timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })
   };
-  
   res.status(200).json(status);
 });
 
@@ -62,7 +67,7 @@ app.get('/', (req, res) => {
 app.get('/api/news', async (req, res) => {
   console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Fetching news from CryptoPanic`);
   try {
-    const API_KEY = process.env.CRYPTOPANIC_API_KEY || 'a89c9df2a5a33117ab7f0368f5fade13c7881b6a';
+    const API_KEY = process.env.CRYPTO_PANIC_API_KEY || 'a89c9df2a5a33117ab7f0368f5fade13c7881b6a';
     const { kind = 'news', currencies, region, filter = 'rising' } = req.query;
     
     let apiUrl = `https://cryptopanic.com/api/v1/posts/?auth_token=${API_KEY}&kind=${kind}&filter=${filter}`;
@@ -153,7 +158,6 @@ app.get('/api/news', async (req, res) => {
 });
 
 // Health check endpoint
-// Health check endpoint with more detailed info
 app.get('/api/health', (req, res) => {
   const netlify = process.env.NETLIFY ? 'Yes' : 'No';
   const functionRegion = process.env.AWS_REGION || 'Unknown';
@@ -167,6 +171,14 @@ app.get('/api/health', (req, res) => {
     runningOnNetlify: netlify,
     region: functionRegion,
     requestHeaders: req.headers
+  });
+});
+
+// Catch-all route for undefined endpoints
+app.use((req, res) => {
+  res.status(404).json({ 
+    message: "Endpoint not found. Use /api/* for available routes.",
+    timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })
   });
 });
 
