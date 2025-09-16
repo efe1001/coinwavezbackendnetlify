@@ -37,7 +37,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Simple test route
-app.get('/api', (req, res) => {
+app.get('/', (req, res) => {
   res.status(200).json({ 
     message: 'CoinWaveZ API is working!',
     timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' }),
