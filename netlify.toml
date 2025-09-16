@@ -8,3 +8,9 @@
   to = "/.netlify/functions/api/:splat"
   status = 200
   force = true
+
+[[redirects]]
+  from = "/api/health"
+  to = "/.netlify/functions/api/health"
+  status = 200
+  force = true
