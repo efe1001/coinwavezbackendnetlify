@@ -4,16 +4,23 @@ const app = require('../index.js');
 module.exports.handler = async (event, context) => {
   console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Incoming event path: ${event.path}`);
   
-  // Handle Netlify functions path - redirect to API root
-  if (event.path === '/.netlify/functions/api') {
-    event.path = '/api';
+  // Store the original path for logging
+  const originalPath = event.path;
+  
+  // Handle Netlify functions path - convert to Express routes
+  if (event.path.startsWith('/.netlify/functions/api')) {
+    // Convert Netlify function path to Express route
+    event.path = event.path.replace('/.netlify/functions/api', '');
   }
-  // Handle root path requests by redirecting to API
-  else if (event.path === '/') {
-    event.path = '/api';
+  
+  // Handle API paths that come through redirect
+  if (event.path.startsWith('/api/')) {
+    // Keep as is for Express routes
+    event.path = event.path;
   }
   
   console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Processed path: ${event.path}`);
+  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Original path: ${originalPath}`);
   
   try {
     const response = await serverless(app)(event, context);
@@ -25,7 +32,9 @@ module.exports.handler = async (event, context) => {
       statusCode: 500,
       body: JSON.stringify({
         message: 'Server error',
-        error: error.message
+        error: error.message,
+        originalPath: originalPath,
+        processedPath: event.path
       })
     };
   }
