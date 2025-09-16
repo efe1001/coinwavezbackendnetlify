@@ -1,26 +1,30 @@
 [build]
   functions = "functions"
-  # Remove the publish line since you don't have a public directory
-  # publish = "public"
 
 [build.environment]
-  NODE_VERSION = "18"
+  NODE_VERSION = "20"
   APP_BASE_URL = "https://coinwavezbackend.netlify.app"
   VITE_SUPABASE_URL = "https://cgyjbbuwiykxmsirigsp.supabase.co"
   VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNneWpiYnV3aXlreG1zaXJpZ3NwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3ODc4NjksImV4cCI6MjA3MzM2Mzg2OX0.bbaW1VutO8acWD0n_m_yWaH0zkVS8w0iBXA5otYbxqM"
 
-# API redirects
+# API redirects - point to the specific function paths
 [[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/api/:splat"
+  from = "/api/news"
+  to = "/.netlify/functions/api/news"
   status = 200
   force = true
 
-# Remove the frontend redirect since you don't have a frontend
-# [[redirects]]
-#   from = "/*"
-#   to = "/index.html"
-#   status = 200
+[[redirects]]
+  from = "/api/health"
+  to = "/.netlify/functions/api/health"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api"
+  to = "/.netlify/functions/api"
+  status = 200
+  force = true
 
 [functions]
   node_bundler = "esbuild"
