@@ -26,7 +26,8 @@ module.exports.handler = async (event, context) => {
       statusCode: 500,
       body: JSON.stringify({
         message: 'Server error in api.js',
-        error: error.message
+        error: error.message,
+        timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })
       })
     };
   }
