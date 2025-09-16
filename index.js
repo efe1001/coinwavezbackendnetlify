@@ -4,185 +4,84 @@ const serverless = require('serverless-http');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const { createClient } = require('@supabase/supabase-js');
+const authRoutes = require('./routes/authRoutes');
+const coinRoutes = require('./routes/coinRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
+const bannerRoutes = require('./routes/bannerRoutes');
 const fetch = require('node-fetch');
-const jwt = require('jsonwebtoken');
 
 const app = express();
 
 // Initialize Supabase client
-const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://cgyjbbuwiykxmsirigsp.supabase.co';
-const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNneWpiYnV3aXlreG1zaXJpZ3NwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3ODc4NjksImV4cCI6MjA3MzM2Mzg2OX0.bbaW1VutO8acWD0n_m_yWaH0zkVS8w0iBXA5otYbxqM';
+const supabaseUrl = process.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Supabase configuration warning: Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY`);
+  console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Supabase configuration error: Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY`);
+  throw new Error('Supabase configuration is incomplete. Check your .env file.');
 }
-const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Validate JWT_SECRET
-const jwtSecret = process.env.JWT_SECRET || 'your_jwt_secret_key_1234567890';
-if (!jwtSecret || jwtSecret === 'your_jwt_secret_key_1234567890') {
-  console.warn(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] JWT_SECRET is missing or using default placeholder; /api/login may not work`);
-}
-
-// Validate APP_BASE_URL
-const appBaseUrl = process.env.APP_BASE_URL || 'https://coinwavezbackend.netlify.app';
-if (appBaseUrl === 'http://localhost:') {
-  console.warn(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] APP_BASE_URL is incomplete; defaulting to https://coinwavezbackend.netlify.app`);
-}
-
-// Connect to MongoDB with timeout
+// MongoDB Connection
 const connectDB = async () => {
   try {
     if (mongoose.connection.readyState === 0) {
-      const mongodbUri = process.env.MONGODB_URI || 'mongodb+srv://asoefe101:computer11@cluster0.ewrktzr.mongodb.net/crypto_db?retryWrites=true&w=majority&appName=Cluster0';
-      if (!mongodbUri) {
-        console.warn(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MONGODB_URI is missing; MongoDB features will be disabled`);
-        return false;
-      }
-      await mongoose.connect(mongodbUri, { serverSelectionTimeoutMS: 5000 });
-      console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB connected successfully`);
-      return true;
+      await mongoose.connect(process.env.MONGODB_URI);
+      console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB connected`);
     }
-    return true;
-  } catch (error) {
-    console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB connection error:`, error);
-    return false;
+  } catch (err) {
+    console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB connection error:`, err);
   }
 };
 
-// Middleware
-app.use(cors({ origin: ['https://coinswavez.com', 'https://www.coinswavez.com'], credentials: true }));
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use((req, res, next) => {
-  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Request received: ${req.method} ${req.path}`);
+// Middleware - Updated CORS to include all possible frontend URLs
+app.use(cors({
+  origin: [
+    'https://coinswavez.com',
+    'https://www.coinswavez.com',
+    'http://localhost:5173',
+    'https://localhost:5173',
+    'http://localhost:3000',
+    'https://localhost:3000',
+    'http://localhost:3002',
+    'https://localhost:3002'
+  ],
+  credentials: true
+}));
+app.use(express.json({ limit: '1gb' }));
+app.use(express.urlencoded({ extended: true, limit: '1gb' }));
+
+// Connect to MongoDB on each request
+app.use(async (req, res, next) => {
+  await connectDB();
   next();
 });
 
-// Status endpoint to show connection status
-app.get('/status', async (req, res) => {
-  const isMongoConnected = await connectDB();
-  const status = {
-    message: 'CoinWaveZ Backend Status',
-    timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' }),
-    isWorking: true,
-    components: {
-      mongodb: isMongoConnected ? 'connected' : 'disconnected',
-      supabase: supabase ? 'connected' : 'disconnected',
-      jwtConfigured: jwtSecret && jwtSecret !== 'your_jwt_secret_key_1234567890' ? 'configured' : 'not configured',
-      coinbaseApi: process.env.COINBASE_API_KEY && process.env.COINBASE_API_KEY !== 'your_coinbase_api_key' ? 'configured' : 'not configured',
-      coinbaseWebhook: process.env.COINBASE_WEBHOOK_SECRET && process.env.COINBASE_WEBHOOK_SECRET !== 'your_coinbase_webhook_secret' ? 'configured' : 'not configured',
-      cryptopanicApi: process.env.CRYPTOPANIC_API_KEY && process.env.CRYPTOPANIC_API_KEY !== 'your_cryptopanic_api_key' ? 'configured' : 'not configured'
-    },
-    baseUrl: appBaseUrl
-  };
-  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Status response:`, status);
-  res.status(200).json(status);
-});
-
-// Simple test route
-app.get(['/', '/api'], async (req, res) => {
-  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Handling root route: ${req.path}`);
-  const isMongoConnected = await connectDB();
-  const response = { 
-    message: 'CoinWaveZ API is working!',
-    baseUrl: appBaseUrl,
-    timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' }),
-    mongodb: isMongoConnected ? 'connected' : 'disconnected',
-    supabase: supabase ? 'connected' : 'disconnected',
-    endpoints: {
-      news: '/api/news',
-      health: '/api/health',
-      coins: '/api/coins',
-      banners: '/api/banners',
-      register: '/api/register',
-      login: '/api/login',
-      payments: '/api/payments/create',
-      status: '/status'
+// Create a wrapper function to handle both route formats
+const createDualRouteHandler = (handler) => {
+  return (req, res, next) => {
+    // Store original URL for logging
+    req.originalApiPath = req.path;
+    
+    // If this is a serverless request, modify the path to remove the function prefix
+    if (req.path.startsWith('/.netlify/functions/api')) {
+      req.url = req.url.replace('/.netlify/functions/api', '');
     }
+    
+    return handler(req, res, next);
   };
-  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Sending response:`, response);
-  res.status(200).json(response);
-});
+};
 
-// Auth routes
-app.post('/api/register', async (req, res) => {
-  if (!supabase) {
-    return res.status(503).json({ message: 'Supabase is not configured; registration unavailable' });
-  }
-  // Placeholder: Implement user registration with Supabase or MongoDB
-  res.status(201).json({ message: 'User registered successfully' });
-});
+// Apply the dual route handler to all routes
+app.use(['/api', '/.netlify/functions/api'], createDualRouteHandler(authRoutes));
+app.use(['/api', '/.netlify/functions/api'], createDualRouteHandler(coinRoutes));
+app.use(['/api/payments', '/.netlify/functions/api/payments'], createDualRouteHandler(paymentRoutes));
+app.use(['/api/banners', '/.netlify/functions/api/banners'], createDualRouteHandler(bannerRoutes));
 
-app.post('/api/login', (req, res) => {
-  if (!jwtSecret || jwtSecret === 'your_jwt_secret_key_1234567890') {
-    return res.status(503).json({ message: 'Authentication is not configured; please contact support' });
-  }
-  // Placeholder: Implement actual user authentication
-  const token = jwt.sign({ userId: 'sample_user_id' }, jwtSecret, { expiresIn: '1h' });
-  res.status(200).json({ message: 'User logged in successfully', token });
-});
-
-// Coin routes
-app.get('/api/coins', async (req, res) => {
-  const coinbaseApiKey = process.env.COINBASE_API_KEY || 'your_coinbase_api_key';
-  if (coinbaseApiKey && coinbaseApiKey !== 'your_coinbase_api_key') {
-    // Placeholder: Fetch coin prices from Coinbase
-    try {
-      // Example: Uncomment to integrate Coinbase API
-      // const response = await fetch('https://api.coinbase.com/v2/prices/spot', {
-      //   headers: { Authorization: `Bearer ${coinbaseApiKey}` }
-      // });
-      // const data = await response.json();
-      // return res.status(200).json(data);
-      res.status(200).json([
-        { id: 1, name: 'Bitcoin', symbol: 'BTC', price: 50000 },
-        { id: 2, name: 'Ethereum', symbol: 'ETH', price: 3000 }
-      ]);
-    } catch (error) {
-      console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Coinbase API error:`, error);
-      res.status(200).json([
-        { id: 1, name: 'Bitcoin', symbol: 'BTC', price: 50000 },
-        { id: 2, name: 'Ethereum', symbol: 'ETH', price: 3000 }
-      ]);
-    }
-  } else {
-    console.warn(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] COINBASE_API_KEY is missing or using default placeholder`);
-    res.status(200).json([
-      { id: 1, name: 'Bitcoin', symbol: 'BTC', price: 50000 },
-      { id: 2, name: 'Ethereum', symbol: 'ETH', price: 3000 }
-    ]);
-  }
-});
-
-// Payment routes
-app.post('/api/payments/create', (req, res) => {
-  const coinbaseWebhookSecret = process.env.COINBASE_WEBHOOK_SECRET || 'your_coinbase_webhook_secret';
-  if (!coinbaseWebhookSecret || coinbaseWebhookSecret === 'your_coinbase_webhook_secret') {
-    console.warn(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] COINBASE_WEBHOOK_SECRET is missing or using default placeholder`);
-  }
-  // Placeholder: Use COINBASE_WEBHOOK_SECRET for payment verification
-  res.status(201).json({ 
-    message: 'Payment created successfully',
-    paymentId: 'pay_' + Math.random().toString(36).substr(2, 9)
-  });
-});
-
-// Banner routes
-app.get('/api/banners', (req, res) => {
-  res.status(200).json([
-    { id: 1, title: 'Welcome Bonus', image: 'https://example.com/banner1.jpg' },
-    { id: 2, title: 'Special Offer', image: 'https://example.com/banner2.jpg' }
-  ]);
-});
-
-// CryptoPanic News API Proxy Endpoint
-app.get('/api/news', async (req, res) => {
-  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Fetching news from CryptoPanic`);
+// CryptoPanic News API Proxy Endpoint - Support both paths
+const newsHandler = async (req, res) => {
+  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Fetching news from CryptoPanic for path: ${req.originalApiPath}`);
   try {
-    const API_KEY = process.env.CRYPTOPANIC_API_KEY || 'your_cryptopanic_api_key';
-    if (!API_KEY || API_KEY === 'your_cryptopanic_api_key') {
-      throw new Error('CryptoPanic API key is missing or using default placeholder');
-    }
+    const API_KEY = process.env.CRYPTOPANIC_API_KEY || 'a89c9df2a5a33117ab7f0368f5fade13c7881b6a';
     const { kind = 'news', currencies, region, filter = 'rising' } = req.query;
     
     let apiUrl = `https://cryptopanic.com/api/v1/posts/?auth_token=${API_KEY}&kind=${kind}&filter=${filter}`;
@@ -233,7 +132,7 @@ app.get('/api/news', async (req, res) => {
           published_at: new Date().toISOString(),
           url: "https://cryptopanic.com/news/1",
           source: { title: "CryptoPanic" },
-          preview: "Bitcoin has reached a new all-time high..."
+          preview: "Bitcoin has reached a new all-time high as institutional investors continue to show strong interest in cryptocurrency investments."
         },
         {
           id: 2,
@@ -241,30 +140,55 @@ app.get('/api/news', async (req, res) => {
           published_at: new Date().toISOString(),
           url: "https://cryptopanic.com/news/2",
           source: { title: "CoinDesk" },
-          preview: "The long-awaited Ethereum 2.0 upgrade..."
+          preview: "The long-awaited Ethereum 2.0 upgrade is set to launch in December, bringing proof-of-stake consensus and scalability improvements."
         }
       ]
     });
   }
-});
+};
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  const isMongoConnected = mongoose.connection.readyState === 1;
+app.get(['/api/news', '/.netlify/functions/api/news'], newsHandler);
+
+// Health check endpoint - Support both paths
+const healthHandler = (req, res) => {
   res.status(200).json({ 
     status: 'OK', 
     timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' }),
-    mongodbConnected: isMongoConnected,
-    supabaseConnected: !!supabase
+    mongodbConnected: mongoose.connection.readyState === 1,
+    supabaseConnected: !!supabase,
+    requestPath: req.originalApiPath,
+    processedPath: req.path
   });
-});
+};
+
+app.get(['/api/health', '/.netlify/functions/api/health'], healthHandler);
+
+// Root endpoint - Support both paths
+const rootHandler = (req, res) => {
+  res.status(200).json({ 
+    message: 'CoinWaveZ API is working!',
+    timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' }),
+    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    requestPath: req.originalApiPath,
+    endpoints: {
+      news: '/api/news (or /.netlify/functions/api/news)',
+      health: '/api/health (or /.netlify/functions/api/health)',
+      coins: '/api/coins (or /.netlify/functions/api/coins)',
+      banners: '/api/banners (or /.netlify/functions/api/banners)',
+      payments: '/api/payments (or /.netlify/functions/api/payments)'
+    }
+  });
+};
+
+app.get(['/api', '/.netlify/functions/api'], rootHandler);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Server error:`, {
     message: err.message,
     stack: err.stack,
-    path: req.path
+    path: req.path,
+    originalPath: req.originalApiPath
   });
   
   res.status(500).json({ message: 'Server error', error: err.message });
@@ -272,9 +196,26 @@ app.use((err, req, res, next) => {
 
 // Handle 404
 app.use((req, res) => {
-  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] 404 for route: ${req.path}`);
-  res.status(404).json({ message: `Route ${req.path} not found` });
+  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] 404 for route: ${req.originalApiPath} (processed: ${req.path})`);
+  res.status(404).json({ 
+    message: `Route ${req.originalApiPath} not found`,
+    originalPath: req.originalApiPath,
+    processedPath: req.path
+  });
 });
 
 // Export the serverless function
 module.exports.handler = serverless(app);
+
+// Start server for local development (optional)
+if (process.env.NODE_ENV !== 'production') {
+  const PORT = process.env.PORT || 3002;
+  app.listen(PORT, () => {
+    console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Server running on http://localhost:${PORT}`);
+    console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] API endpoints available at:`);
+    console.log(`- http://localhost:${PORT}/api`);
+    console.log(`- http://localhost:${PORT}/.netlify/functions/api`);
+  }).on('error', (err) => {
+    console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Server startup error:`, err);
+  });
+}
