@@ -107,6 +107,13 @@ app.get('/api/news', async (req, res) => {
     const response = await fetch(apiUrl);
     
     if (!response.ok) {
+      if (response.status === 429) {
+        console.warn(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] CryptoPanic API rate limit exceeded`);
+        return res.status(429).json({
+          error: 'Rate limit exceeded',
+          message: 'Too many requests to CryptoPanic API. Please try again later.'
+        });
+      }
       throw new Error(`CryptoPanic API error: ${response.status} ${response.statusText}`);
     }
     
