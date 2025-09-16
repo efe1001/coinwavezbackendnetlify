@@ -23,7 +23,7 @@ const connectDB = async () => {
   }
 };
 
-// Middleware
+// Enhanced CORS configuration
 app.use(require('cors')({
   origin: [
     'https://coinswavez.com',
@@ -31,8 +31,26 @@ app.use(require('cors')({
     'http://localhost:5173',
     'https://localhost:5173'
   ],
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
+
+// Additional CORS headers for all responses
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || 'https://coinswavez.com');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
+  next();
+});
+
 app.use(require('express').json({ limit: '10mb' }));
 app.use(require('express').urlencoded({ extended: true, limit: '10mb' }));
 
@@ -72,11 +90,13 @@ app.get('/', (req, res) => {
     endpoints: {
       news: '/.netlify/functions/api/news',
       health: '/.netlify/functions/api/health',
+      coins: '/.netlify/functions/api/coins',
       api_root: '/.netlify/functions/api'
     },
     redirects: {
       news: '/api/news',
       health: '/api/health', 
+      coins: '/api/coins',
       api_root: '/api'
     }
   });
@@ -93,6 +113,23 @@ app.get('/health', (req, res) => {
     originalPath: req.originalFunctionPath,
     processedPath: req.url
   });
+});
+
+// Coins endpoint
+app.get('/coins', (req, res) => {
+  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Fetching coins`);
+  
+  // Placeholder response - replace with your actual coin data logic
+  res.status(200).json([
+    { id: 1, name: 'Bitcoin', symbol: 'BTC', price: 50000, change24h: 2.5 },
+    { id: 2, name: 'Ethereum', symbol: 'ETH', price: 3000, change24h: 1.8 },
+    { id: 3, name: 'Solana', symbol: 'SOL', price: 150, change24h: 5.2 },
+    { id: 4, name: 'Cardano', symbol: 'ADA', price: 0.5, change24h: -0.3 },
+    { id: 5, name: 'Binance Coin', symbol: 'BNB', price: 350, change24h: 0.7 },
+    { id: 6, name: 'Ripple', symbol: 'XRP', price: 0.6, change24h: -1.2 },
+    { id: 7, name: 'Polkadot', symbol: 'DOT', price: 7.5, change24h: 3.1 },
+    { id: 8, name: 'Dogecoin', symbol: 'DOGE', price: 0.15, change24h: 8.5 }
+  ]);
 });
 
 // CryptoPanic News API Proxy Endpoint
@@ -176,12 +213,14 @@ app.use((req, res) => {
     availableEndpoints: [
       '/.netlify/functions/api',
       '/.netlify/functions/api/health',
-      '/.netlify/functions/api/news'
+      '/.netlify/functions/api/news',
+      '/.netlify/functions/api/coins'
     ],
     availableRedirects: [
       '/api',
       '/api/health', 
-      '/api/news'
+      '/api/news',
+      '/api/coins'
     ]
   });
 });
