@@ -10,6 +10,7 @@ const bannerRoutes = require('./routes/bannerRoutes');
 const fetch = require('node-fetch');
 const serverless = require('serverless-http');
 const path = require('path');
+const Entity = require('./models/entity');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -39,7 +40,8 @@ const connectMongoDB = async () => {
   while (attempts < maxAttempts) {
     try {
       await mongoose.connect(process.env.MONGODB_URI, {
-        serverSelectionTimeoutMS: 5000
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 45000
       });
       mongoConnected = true;
       console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB connected successfully`);
@@ -67,6 +69,12 @@ app.use(express.urlencoded({ extended: true, limit: '1gb' }));
 // Serve static files from /tmp/Uploads for Netlify
 app.use('/uploads', express.static('/tmp/Uploads'));
 
+// Log all incoming requests
+app.use((req, res, next) => {
+  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Request received: ${req.method} ${req.originalUrl}`);
+  next();
+});
+
 // Routes
 app.use('/api', authRoutes);
 app.use('/api', coinRoutes);
@@ -85,13 +93,22 @@ app.get('/', (req, res) => {
   res.status(200).json(status);
 });
 
-// CryptoPanic News API Proxy Endpoint
+// CryptoPanic News API Proxy Endpoint with caching
 app.get('/api/news', async (req, res) => {
   console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Fetching news from CryptoPanic`);
   try {
-    const API_KEY = process.env.CRYPTO_PANIC_API_KEY || 'a89c9df2a5a33117ab7f0368f5fade13c7881b6a';
     const { kind = 'news', currencies, region, filter = 'rising' } = req.query;
     
+    // Check cache (1-hour expiry)
+    if (mongoConnected) {
+      const cache = await Entity.News?.findOne({ kind: kind || 'news' });
+      if (cache && new Date().getTime() - cache.updatedAt.getTime() < 3600000) {
+        console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Serving news from cache`);
+        return res.status(200).json({ results: cache.results });
+      }
+    }
+
+    const API_KEY = process.env.CRYPTO_PANIC_API_KEY || 'a89c9df2a5a33117ab7f0368f5fade13c7881b6a';
     let apiUrl = `https://cryptopanic.com/api/v1/posts/?auth_token=${API_KEY}&kind=${kind}&filter=${filter}`;
     
     if (currencies) apiUrl += `&currencies=${currencies}`;
@@ -115,14 +132,15 @@ app.get('/api/news', async (req, res) => {
     const enhancedResults = data.results.map(item => {
       let previewText = "Click to read full article";
       if (item.title.toLowerCase().includes('bitcoin')) {
-        previewText = "Bitcoin continues to dominate the cryptocurrency market...";
+        previewText = "Bitcoin continues to dominate the cryptocurrency market with recent developments...";
       } else if (item.title.toLowerCase().includes('ethereum')) {
-        previewText = "Ethereum network upgrades and DeFi developments...";
+        previewText = "Ethereum network upgrades and DeFi developments are shaping the future of blockchain...";
       } else if (item.title.toLowerCase().includes('nft')) {
-        previewText = "The NFT market is evolving with new projects...";
+        previewText = "The NFT market is evolving with new projects and partnerships emerging regularly...";
       } else if (item.title.toLowerCase().includes('defi')) {
-        previewText = "DeFi protocols are introducing innovative solutions...";
+        previewText = "DeFi protocols are introducing innovative solutions for decentralized finance...";
       }
+      
       return {
         ...item,
         preview: previewText,
@@ -130,10 +148,62 @@ app.get('/api/news', async (req, res) => {
       };
     });
     
+    // Cache results if MongoDB is connected
+    if (mongoConnected) {
+      await Entity.News?.updateOne(
+        { kind: kind || 'news' },
+        { results: enhancedResults, updatedAt: new Date() },
+        { upsert: true }
+      );
+    }
+    
     res.status(200).json({ results: enhancedResults });
   } catch (error) {
     console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Error fetching news:`, error.message);
-    res.status(200).json({ results: [/* mock data as in previous response */] });
+    res.status(200).json({ 
+      results: [
+        {
+          id: 1,
+          title: "Bitcoin Surges Past $60,000 Amid Institutional Demand",
+          published_at: new Date().toISOString(),
+          url: "https://cryptopanic.com/news/1",
+          source: { title: "CryptoPanic" },
+          preview: "Bitcoin has reached a new all-time high as institutional investors continue to show strong interest in cryptocurrency investments."
+        },
+        {
+          id: 2,
+          title: "Ethereum 2.0 Upgrade Scheduled for December Launch",
+          published_at: new Date().toISOString(),
+          url: "https://cryptopanic.com/news/2",
+          source: { title: "CoinDesk" },
+          preview: "The long-awaited Ethereum 2.0 upgrade is set to launch in December, bringing proof-of-stake consensus and scalability improvements."
+        },
+        {
+          id: 3,
+          title: "Solana Outage Highlights Blockchain Scalability Challenges",
+          published_at: new Date().toISOString(),
+          url: "https://cryptopanic.com/news/3",
+          source: { title: "Decrypt" },
+          preview: "The Solana network experienced a significant outage yesterday, raising questions about the scalability of high-throughput blockchains."
+        },
+        {
+          id: 4,
+          title: "NFT Market Sees Record Sales Despite Crypto Winter",
+          published_at: new Date().toISOString(),
+          url: "https://cryptopanic.com/news/4",
+          source: { title: "The Block" },
+          preview: "Non-fungible token sales have reached record levels this month, with several high-profile collections selling for millions."
+        },
+        {
+          id: 5,
+          title: "Central Banks Exploring CBDCs as Crypto Adoption Grows",
+          published_at: new Date().toISOString(),
+          url: "https://cryptopanic.com/news/5",
+          source: { title: "Reuters" },
+          preview: "Central banks worldwide are accelerating their research into central bank digital currencies (CBDCs) as cryptocurrency adoption grows."
+        }
+      ]
+    });
   }
 });
 

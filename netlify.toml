@@ -1,7 +1,8 @@
 [build]
   functions = "functions"
+
 [build.environment]
-  NODE_VERSION = "20" # Upgrade to Node.js 20 for Supabase compatibility
+  NODE_VERSION = "20"
 
 [[redirects]]
   from = "/api/*"
