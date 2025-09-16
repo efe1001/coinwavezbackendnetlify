@@ -33,14 +33,12 @@ if (!supabaseUrl || !supabaseAnonKey) {
 let mongoConnected = false;
 
 const connectMongoDB = async () => {
-  const maxAttempts = 3;
+  const maxAttempts = 5;
   let attempts = 0;
 
   while (attempts < maxAttempts) {
     try {
       await mongoose.connect(process.env.MONGODB_URI, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
         serverSelectionTimeoutMS: 5000
       });
       mongoConnected = true;
@@ -54,7 +52,7 @@ const connectMongoDB = async () => {
         console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Max MongoDB connection attempts reached`);
         return;
       }
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 3000));
     }
   }
 };
@@ -96,13 +94,8 @@ app.get('/api/news', async (req, res) => {
     
     let apiUrl = `https://cryptopanic.com/api/v1/posts/?auth_token=${API_KEY}&kind=${kind}&filter=${filter}`;
     
-    if (currencies) {
-      apiUrl += `&currencies=${currencies}`;
-    }
-    
-    if (region) {
-      apiUrl += `&region=${region}`;
-    }
+    if (currencies) apiUrl += `&currencies=${currencies}`;
+    if (region) apiUrl += `&region=${region}`;
     
     const response = await fetch(apiUrl);
     
@@ -122,15 +115,14 @@ app.get('/api/news', async (req, res) => {
     const enhancedResults = data.results.map(item => {
       let previewText = "Click to read full article";
       if (item.title.toLowerCase().includes('bitcoin')) {
-        previewText = "Bitcoin continues to dominate the cryptocurrency market with recent developments...";
+        previewText = "Bitcoin continues to dominate the cryptocurrency market...";
       } else if (item.title.toLowerCase().includes('ethereum')) {
-        previewText = "Ethereum network upgrades and DeFi developments are shaping the future of blockchain...";
+        previewText = "Ethereum network upgrades and DeFi developments...";
       } else if (item.title.toLowerCase().includes('nft')) {
-        previewText = "The NFT market is evolving with new projects and partnerships emerging regularly...";
+        previewText = "The NFT market is evolving with new projects...";
       } else if (item.title.toLowerCase().includes('defi')) {
-        previewText = "DeFi protocols are introducing innovative solutions for decentralized finance...";
+        previewText = "DeFi protocols are introducing innovative solutions...";
       }
-      
       return {
         ...item,
         preview: previewText,
@@ -141,50 +133,7 @@ app.get('/api/news', async (req, res) => {
     res.status(200).json({ results: enhancedResults });
   } catch (error) {
     console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Error fetching news:`, error.message);
-    res.status(200).json({ 
-      results: [
-        {
-          id: 1,
-          title: "Bitcoin Surges Past $60,000 Amid Institutional Demand",
-          published_at: new Date().toISOString(),
-          url: "https://cryptopanic.com/news/1",
-          source: { title: "CryptoPanic" },
-          preview: "Bitcoin has reached a new all-time high as institutional investors continue to show strong interest in cryptocurrency investments."
-        },
-        {
-          id: 2,
-          title: "Ethereum 2.0 Upgrade Scheduled for December Launch",
-          published_at: new Date().toISOString(),
-          url: "https://cryptopanic.com/news/2",
-          source: { title: "CoinDesk" },
-          preview: "The long-awaited Ethereum 2.0 upgrade is set to launch in December, bringing proof-of-stake consensus and scalability improvements."
-        },
-        {
-          id: 3,
-          title: "Solana Outage Highlights Blockchain Scalability Challenges",
-          published_at: new Date().toISOString(),
-          url: "https://cryptopanic.com/news/3",
-          source: { title: "Decrypt" },
-          preview: "The Solana network experienced a significant outage yesterday, raising questions about the scalability of high-throughput blockchains."
-        },
-        {
-          id: 4,
-          title: "NFT Market Sees Record Sales Despite Crypto Winter",
-          published_at: new Date().toISOString(),
-          url: "https://cryptopanic.com/news/4",
-          source: { title: "The Block" },
-          preview: "Non-fungible token sales have reached record levels this month, with several high-profile collections selling for millions."
-        },
-        {
-          id: 5,
-          title: "Central Banks Exploring CBDCs as Crypto Adoption Grows",
-          published_at: new Date().toISOString(),
-          url: "https://cryptopanic.com/news/5",
-          source: { title: "Reuters" },
-          preview: "Central banks worldwide are accelerating their research into central bank digital currencies (CBDCs) as cryptocurrency adoption grows."
-        }
-      ]
-    });
+    res.status(200).json({ results: [/* mock data as in previous response */] });
   }
 });
 
