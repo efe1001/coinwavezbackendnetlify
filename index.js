@@ -23,7 +23,7 @@ if (!jwtSecret || jwtSecret === 'your_jwt_secret_key_1234567890') {
   console.warn(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] JWT_SECRET is missing or using default placeholder; /api/login may not work`);
 }
 
-// Connect to MongoDB once at startup
+// Connect to MongoDB with timeout
 const connectDB = async () => {
   try {
     if (mongoose.connection.readyState === 0) {
@@ -31,7 +31,7 @@ const connectDB = async () => {
         console.warn(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MONGODB_URI is missing; MongoDB features will be disabled`);
         return;
       }
-      await mongoose.connect(process.env.MONGODB_URI);
+      await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 5000 });
       console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB connected successfully`);
     }
   } catch (error) {
@@ -46,9 +46,14 @@ connectDB().catch((error) => {
 app.use(cors({ origin: ['https://coinswavez.com', 'https://www.coinswavez.com'] }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use((req, res, next) => {
+  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Request received: ${req.method} ${req.path}`);
+  next();
+});
 
 // Simple test route
-app.get('/', (req, res) => {
+app.get(['/', '/.netlify/functions/api'], (req, res) => {
+  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Handling root route: ${req.path}`);
   res.status(200).json({ 
     message: 'CoinWaveZ API is working!',
     baseUrl: process.env.APP_BASE_URL || 'https://coinwavezbackend.netlify.app',
@@ -234,6 +239,7 @@ app.use((err, req, res, next) => {
 
 // Handle 404
 app.use((req, res) => {
+  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] 404 for route: ${req.path}`);
   res.status(404).json({ message: `Route ${req.path} not found` });
 });
 

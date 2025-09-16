@@ -1,9 +1,10 @@
 const serverless = require('serverless-http');
 const app = require('../index.js');
 
-// Normalize path to remove "/.netlify/functions/api" prefix
 module.exports.handler = async (event, context) => {
-  // Strip "/.netlify/functions/api" from the path
+  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Incoming event path: ${event.path}`);
+  // Normalize path: remove "/.netlify/functions/api" prefix
   event.path = event.path.replace('/.netlify/functions/api', '') || '/';
+  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Normalized path: ${event.path}`);
   return serverless(app)(event, context);
 };
