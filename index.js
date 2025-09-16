@@ -24,9 +24,9 @@ if (!jwtSecret || jwtSecret === 'your_jwt_secret_key_1234567890') {
 }
 
 // Validate APP_BASE_URL
-const appBaseUrl = process.env.APP_BASE_URL || 'http://localhost:3002';
+const appBaseUrl = process.env.APP_BASE_URL || 'https://coinwavezbackend.netlify.app';
 if (appBaseUrl === 'http://localhost:') {
-  console.warn(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] APP_BASE_URL is incomplete; defaulting to http://localhost:3002`);
+  console.warn(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] APP_BASE_URL is incomplete; defaulting to https://coinwavezbackend.netlify.app`);
 }
 
 // Connect to MongoDB with timeout
@@ -58,6 +58,27 @@ app.use((req, res, next) => {
   next();
 });
 
+// Status endpoint to show connection status
+app.get('/status', async (req, res) => {
+  const isMongoConnected = await connectDB();
+  const status = {
+    message: 'CoinWaveZ Backend Status',
+    timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' }),
+    isWorking: true,
+    components: {
+      mongodb: isMongoConnected ? 'connected' : 'disconnected',
+      supabase: supabase ? 'connected' : 'disconnected',
+      jwtConfigured: jwtSecret && jwtSecret !== 'your_jwt_secret_key_1234567890' ? 'configured' : 'not configured',
+      coinbaseApi: process.env.COINBASE_API_KEY && process.env.COINBASE_API_KEY !== 'your_coinbase_api_key' ? 'configured' : 'not configured',
+      coinbaseWebhook: process.env.COINBASE_WEBHOOK_SECRET && process.env.COINBASE_WEBHOOK_SECRET !== 'your_coinbase_webhook_secret' ? 'configured' : 'not configured',
+      cryptopanicApi: process.env.CRYPTOPANIC_API_KEY && process.env.CRYPTOPANIC_API_KEY !== 'your_cryptopanic_api_key' ? 'configured' : 'not configured'
+    },
+    baseUrl: appBaseUrl
+  };
+  console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Status response:`, status);
+  res.status(200).json(status);
+});
+
 // Simple test route
 app.get(['/', '/api'], async (req, res) => {
   console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Handling root route: ${req.path}`);
@@ -75,7 +96,8 @@ app.get(['/', '/api'], async (req, res) => {
       banners: '/api/banners',
       register: '/api/register',
       login: '/api/login',
-      payments: '/api/payments/create'
+      payments: '/api/payments/create',
+      status: '/status'
     }
   };
   console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Sending response:`, response);
@@ -183,7 +205,7 @@ app.get('/api/news', async (req, res) => {
     
     const enhancedResults = data.results.map(item => {
       let previewText = "Click to read full article";
-      if (item.title.toLowerCase().Includes('bitcoin')) {
+      if (item.title.toLowerCase().includes('bitcoin')) {
         previewText = "Bitcoin continues to dominate the cryptocurrency market with recent developments...";
       } else if (item.title.toLowerCase().includes('ethereum')) {
         previewText = "Ethereum network upgrades and DeFi developments are shaping the future of blockchain...";
