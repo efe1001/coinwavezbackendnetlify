@@ -4,10 +4,10 @@
 [build.environment]
   NODE_VERSION = "20"
   PORT = "3002"
-  JWT_SECRET = "your_jwt_secret_key_1234567890" # Replace with secure value
+  JWT_SECRET = "your_secure_jwt_secret" # Replace with secure value
   COINBASE_API_KEY = "your_coinbase_api_key" # Replace with secure value
   COINBASE_WEBHOOK_SECRET = "your_coinbase_webhook_secret" # Replace with secure value
-  APP_BASE_URL = "https://coinwavezbackend.netlify.app" # Production URL
+  APP_BASE_URL = "https://coinwavezbackend.netlify.app"
   MONGODB_URI = "mongodb+srv://asoefe101:your_new_password@cluster0.ewrktzr.mongodb.net/crypto_db?retryWrites=true&w=majority&appName=Cluster0" # Update password
   VITE_SUPABASE_URL = "https://cgyjbbuwiykxmsirigsp.supabase.co"
   VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNneWpiYnV3aXlreG1zaXJpZ3NwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3ODc4NjksImV4cCI6MjA3MzM2Mzg2OX0.bbaW1VutO8acWD0n_m_yWaH0zkVS8w0iBXA5otYbxqM"

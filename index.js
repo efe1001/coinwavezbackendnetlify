@@ -1,9 +1,11 @@
+require('dotenv').config();
 const express = require('express');
 const serverless = require('serverless-http');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const { createClient } = require('@supabase/supabase-js');
 const fetch = require('node-fetch');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 
@@ -15,6 +17,13 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Supabase configuration is incomplete. Check your environment variables.');
 }
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Validate JWT_SECRET
+const jwtSecret = process.env.JWT_SECRET;
+if (!jwtSecret) {
+  console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] JWT_SECRET is missing`);
+  throw new Error('JWT_SECRET is required for authentication');
+}
 
 // Connect to MongoDB once at startup
 const connectDB = async () => {
@@ -40,36 +49,59 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.get('/', (req, res) => {
   res.status(200).json({ 
     message: 'CoinWaveZ API is working!',
+    baseUrl: process.env.APP_BASE_URL,
     timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' }),
     mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
     endpoints: {
       news: '/api/news',
       health: '/api/health',
       coins: '/api/coins',
-      banners: '/api/banners'
+      banners: '/api/banners',
+      register: '/api/register',
+      login: '/api/login',
+      payments: '/api/payments/create'
     }
   });
 });
 
 // Auth routes
 app.post('/api/register', (req, res) => {
+  // Placeholder: Implement user registration with Supabase or MongoDB
   res.status(201).json({ message: 'User registered successfully' });
 });
 
 app.post('/api/login', (req, res) => {
-  res.status(200).json({ message: 'User logged in successfully', token: 'sample-jwt-token' });
+  // Placeholder: Implement actual user authentication
+  const token = jwt.sign({ userId: 'sample_user_id' }, jwtSecret, { expiresIn: '1h' });
+  res.status(200).json({ message: 'User logged in successfully', token });
 });
 
 // Coin routes
-app.get('/api/coins', (req, res) => {
-  res.status(200).json([
-    { id: 1, name: 'Bitcoin', symbol: 'BTC', price: 50000 },
-    { id: 2, name: 'Ethereum', symbol: 'ETH', price: 3000 }
-  ]);
+app.get('/api/coins', async (req, res) => {
+  // Placeholder: Use COINBASE_API_KEY for real data
+  const coinbaseApiKey = process.env.COINBASE_API_KEY;
+  if (coinbaseApiKey) {
+    // Example: Fetch coin prices from Coinbase (implement as needed)
+    // const response = await fetch('https://api.coinbase.com/v2/prices/spot', {
+    //   headers: { Authorization: `Bearer ${coinbaseApiKey}` }
+    // });
+    // const data = await response.json();
+    // res.status(200).json(data);
+    res.status(200).json([
+      { id: 1, name: 'Bitcoin', symbol: 'BTC', price: 50000 },
+      { id: 2, name: 'Ethereum', symbol: 'ETH', price: 3000 }
+    ]);
+  } else {
+    res.status(200).json([
+      { id: 1, name: 'Bitcoin', symbol: 'BTC', price: 50000 },
+      { id: 2, name: 'Ethereum', symbol: 'ETH', price: 3000 }
+    ]);
+  }
 });
 
 // Payment routes
 app.post('/api/payments/create', (req, res) => {
+  // Placeholder: Use COINBASE_WEBHOOK_SECRET for payment verification
   res.status(201).json({ 
     message: 'Payment created successfully',
     paymentId: 'pay_' + Math.random().toString(36).substr(2, 9)
