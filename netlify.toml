@@ -1,27 +1,26 @@
 [build]
   functions = "functions"
+  publish = "public"  # Add this line
 
 [build.environment]
-  NODE_VERSION = "20"
-  PORT = "3002"
+  NODE_VERSION = "18"  # Change from 20 to 18 for better compatibility
+  # Remove PORT as it's not needed for serverless functions
   APP_BASE_URL = "https://coinwavezbackend.netlify.app"
   VITE_SUPABASE_URL = "https://cgyjbbuwiykxmsirigsp.supabase.co"
   VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNneWpiYnV3aXlreG1zaXJpZ3NwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3ODc4NjksImV4cCI6MjA3MzM2Mzg2OX0.bbaW1VutO8acWD0n_m_yWaH0zkVS8w0iBXA5otYbxqM"
 
+# API redirects - only redirect API paths, not the root
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
   status = 200
   force = true
 
+# Serve the frontend for all other routes
 [[redirects]]
-  from = "/"
-  to = "/.netlify/functions/api"
+  from = "/*"
+  to = "/index.html"
   status = 200
-  force = true
 
-[[redirects]]
-  from = "/status"
-  to = "/.netlify/functions/api/status"
-  status = 200
-  force = true
+[functions]
+  node_bundler = "esbuild"
