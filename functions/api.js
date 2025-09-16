@@ -42,6 +42,22 @@ app.use(async (req, res, next) => {
   next();
 });
 
+// Root endpoint for the function
+app.get('/', (req, res) => {
+  const isMongoConnected = mongoose.connection.readyState === 1;
+  res.status(200).json({ 
+    message: 'CoinWaveZ API is working!',
+    timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' }),
+    mongodb: isMongoConnected ? 'connected' : 'disconnected',
+    supabase: !!supabase ? 'connected' : 'disconnected',
+    endpoints: {
+      news: '/news',
+      health: '/health',
+      // Add other endpoints that are defined in this function
+    }
+  });
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   const isMongoConnected = mongoose.connection.readyState === 1;
@@ -110,7 +126,7 @@ app.get('/news', async (req, res) => {
         },
         {
           id: 2,
-          title: "Ethereum 2.0 Upgrade Scheduled for December Launch",
+          title: "Ehereum 2.0 Upgrade Scheduled for December Launch",
           published_at: new Date().toISOString(),
           url: "https://cryptopanic.com/news/2",
           source: { title: "CoinDesk" },
@@ -121,18 +137,11 @@ app.get('/news', async (req, res) => {
   }
 });
 
-// Root endpoint
-app.get('/', (req, res) => {
-  const isMongoConnected = mongoose.connection.readyState === 1;
-  res.status(200).json({ 
-    message: 'CoinWaveZ API is working!',
-    timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' }),
-    mongodb: isMongoConnected ? 'connected' : 'disconnected',
-    supabase: !!supabase ? 'connected' : 'disconnected',
-    endpoints: {
-      news: '/news',
-      health: '/health'
-    }
+// Handle 404 for this specific function
+app.use((req, res) => {
+  res.status(404).json({ 
+    message: `Endpoint ${req.path} not found in API function`,
+    availableEndpoints: ['/', '/health', '/news']
   });
 });
 
