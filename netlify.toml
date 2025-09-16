@@ -6,13 +6,13 @@
 
 [[redirects]]
   from = "/api/*"
-  to = "/.netlify/functions/api/:splat"
+  to = "/./functions/api/:splat"
   status = 200
   force = true
 
 [[redirects]]
   from = "/api/health"
-  to = "/.netlify/functions/api/health"
+  to = "/./functions/api/health"
   status = 200
   force = true
 
