@@ -1,7 +1,7 @@
 [build]
   functions = "functions"
 [build.environment]
-  NODE_VERSION = "18"
+  NODE_VERSION = "20" # Upgrade to Node.js 20 for Supabase compatibility
 
 [[redirects]]
   from = "/api/*"
@@ -11,6 +11,12 @@
 
 [[redirects]]
   from = "/api/health"
+  to = "/.netlify/functions/api/health"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/health/"
   to = "/.netlify/functions/api/health"
   status = 200
   force = true
