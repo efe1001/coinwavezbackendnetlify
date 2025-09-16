@@ -34,7 +34,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 let mongoConnected = false;
 
 const connectMongoDB = async () => {
-  const maxAttempts = 10; // Increased from 5
+  const maxAttempts = 10;
   let attempts = 0;
 
   while (attempts < maxAttempts) {
@@ -54,7 +54,7 @@ const connectMongoDB = async () => {
         console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Max MongoDB connection attempts reached`);
         return;
       }
-      await new Promise(resolve => setTimeout(resolve, 5000)); // Increased from 3000ms
+      await new Promise(resolve => setTimeout(resolve, 5000));
     }
   }
 };
