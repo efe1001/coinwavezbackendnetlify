@@ -16,7 +16,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// MongoDB Connection - Remove deprecated options
+// Connect to MongoDB once at startup
 const connectDB = async () => {
   try {
     if (mongoose.connection.readyState === 0) {
@@ -25,47 +25,43 @@ const connectDB = async () => {
     }
   } catch (error) {
     console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] MongoDB connection error:`, error);
-    // Don't throw error to allow other functionality to work
   }
 };
-
-// Middleware
-app.use(cors());
-app.use(express.json({ limit: '1gb' }));
-app.use(express.urlencoded({ extended: true, limit: '1gb' }));
-
-// Connect to MongoDB on each request
-app.use(async (req, res, next) => {
-  await connectDB();
-  next();
+connectDB().catch((error) => {
+  console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Failed to connect to MongoDB:`, error);
 });
 
+// Middleware
+app.use(cors({ origin: ['https://coinswavez.com', 'https://www.coinswavez.com'] }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
 // Simple test route
-app.get('/.netlify/functions/api', (req, res) => {
+app.get('/api', (req, res) => {
   res.status(200).json({ 
     message: 'CoinWaveZ API is working!',
     timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' }),
     mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
     endpoints: {
-      news: '/.netlify/functions/api/news',
-      health: '/.netlify/functions/api/health',
-      coins: '/.netlify/functions/api/coins',
-      banners: '/.netlify/functions/api/banners'
+      news: '/api/news',
+      health: '/api/health',
+      coins: '/api/coins',
+      banners: '/api/banners'
     }
   });
 });
 
 // Auth routes
-app.post('/.netlify/functions/api/register', (req, res) => {
+app.post('/api/register', (req, res) => {
   res.status(201).json({ message: 'User registered successfully' });
 });
 
-app.post('/.netlify/functions/api/login', (req, res) => {
+app.post('/api/login', (req, res) => {
   res.status(200).json({ message: 'User logged in successfully', token: 'sample-jwt-token' });
 });
 
 // Coin routes
-app.get('/.netlify/functions/api/coins', (req, res) => {
+app.get('/api/coins', (req, res) => {
   res.status(200).json([
     { id: 1, name: 'Bitcoin', symbol: 'BTC', price: 50000 },
     { id: 2, name: 'Ethereum', symbol: 'ETH', price: 3000 }
@@ -73,7 +69,7 @@ app.get('/.netlify/functions/api/coins', (req, res) => {
 });
 
 // Payment routes
-app.post('/.netlify/functions/api/payments/create', (req, res) => {
+app.post('/api/payments/create', (req, res) => {
   res.status(201).json({ 
     message: 'Payment created successfully',
     paymentId: 'pay_' + Math.random().toString(36).substr(2, 9)
@@ -81,7 +77,7 @@ app.post('/.netlify/functions/api/payments/create', (req, res) => {
 });
 
 // Banner routes
-app.get('/.netlify/functions/api/banners', (req, res) => {
+app.get('/api/banners', (req, res) => {
   res.status(200).json([
     { id: 1, title: 'Welcome Bonus', image: 'https://example.com/banner1.jpg' },
     { id: 2, title: 'Special Offer', image: 'https://example.com/banner2.jpg' }
@@ -89,10 +85,13 @@ app.get('/.netlify/functions/api/banners', (req, res) => {
 });
 
 // CryptoPanic News API Proxy Endpoint
-app.get('/.netlify/functions/api/news', async (req, res) => {
+app.get('/api/news', async (req, res) => {
   console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Fetching news from CryptoPanic`);
   try {
-    const API_KEY = process.env.CRYPTOPANIC_API_KEY || 'a89c9df2a5a33117ab7f0368f5fade13c7881b6a';
+    const API_KEY = process.env.CRYPTOPANIC_API_KEY;
+    if (!API_KEY) {
+      throw new Error('CryptoPanic API key is missing');
+    }
     const { kind = 'news', currencies, region, filter = 'rising' } = req.query;
     
     let apiUrl = `https://cryptopanic.com/api/v1/posts/?auth_token=${API_KEY}&kind=${kind}&filter=${filter}`;
@@ -159,7 +158,7 @@ app.get('/.netlify/functions/api/news', async (req, res) => {
 });
 
 // Health check endpoint
-app.get('/.netlify/functions/api/health', (req, res) => {
+app.get('/api/health', (req, res) => {
   res.status(200).json({ 
     status: 'OK', 
     timestamp: new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' }),
@@ -185,5 +184,4 @@ app.use((req, res) => {
 });
 
 // Export the serverless function
-
 module.exports.handler = serverless(app);
