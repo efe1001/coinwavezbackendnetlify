@@ -53,25 +53,25 @@ exports.submitCoin = async (req, res) => {
       createdAt, roadmap, logo: logoUrl
     });
 
-    let logoPath = null;
-    if (logoUrl) {
-      console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Logo file received:`, logoUrl);
-      const { data: fileData, error: fileError } = await supabase.storage
-        .from('coin-logos')
-        .list('', { search: logoUrl });
-
-      if (fileError) {
-        console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Supabase file check error:`, fileError);
-        return res.status(500).json({ message: 'Error verifying logo file', error: fileError.message });
-      }
-
-      if (!fileData.find(file => file.name === logoUrl)) {
-        console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Logo file not found in Supabase:`, logoUrl);
-        return res.status(400).json({ message: 'Logo file not found in storage' });
-      }
-
-      logoPath = logoUrl;
-    }
+   let logoPath = null;
+if (req.file) {
+  // Upload the file to Supabase
+  const fileExt = req.file.originalname.split('.').pop();
+  const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+  const { error: uploadError } = await supabase.storage
+    .from('coin-logos')
+    .upload(fileName, req.file.buffer, {
+      cacheControl: '3600',
+      upsert: false,
+    });
+  if (uploadError) {
+    throw new Error(`Failed to upload logo: ${uploadError.message}`);
+  }
+  logoPath = fileName;
+} else if (req.body.logoUrl) {
+  // Use the existing logoUrl
+  logoPath = req.body.logoUrl;
+}
 
     let parsedCategories = [];
     let parsedBadges = [];
