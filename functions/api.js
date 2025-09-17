@@ -77,7 +77,6 @@ app.use((req, res, next) => {
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Credentials', 'true');
   
-  // Handle preflight requests
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
@@ -114,19 +113,13 @@ app.use(async (req, res, next) => {
 
 // Middleware to fix paths for Netlify Functions
 app.use((req, res, next) => {
-  // Store the original URL for reference
   req.originalFunctionPath = req.url;
-
-  // Remove the function prefix from the path
   if (req.url.startsWith('/.netlify/functions/api')) {
     req.url = req.url.replace('/.netlify/functions/api', '');
   }
-
-  // If the path is empty after removal, set it to root
   if (req.url === '') {
     req.url = '/';
   }
-
   console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Original path: ${req.originalFunctionPath}, Processed path: ${req.url}`);
   next();
 });
@@ -150,7 +143,7 @@ app.get(['/', '/api'], async (req, res) => {
       health: '/api/health',
       coins: '/api/coins',
       banners: '/api/banners',
-      payments: '/api/payments',
+      payments: '/api/payments/create-charge',
       register: '/api/register',
       login: '/api/login'
     }
@@ -158,7 +151,7 @@ app.get(['/', '/api'], async (req, res) => {
 });
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/api/health', (req, res) => {
   const isMongoConnected = mongoose.connection.readyState === 1;
   res.status(200).json({ 
     status: 'OK', 
@@ -169,7 +162,7 @@ app.get('/health', (req, res) => {
 });
 
 // CryptoPanic News API Proxy Endpoint
-app.get('/news', async (req, res) => {
+app.get('/api/news', async (req, res) => {
   console.log(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Fetching news from CryptoPanic`);
   
   try {
@@ -186,9 +179,8 @@ app.get('/news', async (req, res) => {
       apiUrl += `&region=${region}`;
     }
     
-    // Add timeout to external API call
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    const timeout = setTimeout(() => controller.abort(), 10000);
     
     try {
       const response = await fetch(apiUrl, { signal: controller.signal });
@@ -223,7 +215,6 @@ app.get('/news', async (req, res) => {
   } catch (error) {
     console.error(`[${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}] Error fetching news:`, error.message);
     
-    // Return fallback data instead of error
     res.status(200).json({ 
       results: [
         {
@@ -247,17 +238,12 @@ app.get('/news', async (req, res) => {
   }
 });
 
-// Import and use your routes
-app.use('/api', authRoutes);
-app.use('/api', coinRoutes);
-app.use('/api/payments', paymentRoutes);
-app.use('/api/banners', bannerRoutes);
-
-// Also support the netlify functions path for all routes
-app.use('/.netlify/functions/api', authRoutes);
-app.use('/.netlify/functions/api', coinRoutes);
-app.use('/.netlify/functions/api/payments', paymentRoutes);
-app.use('/.netlify/functions/api/banners', bannerRoutes);
+// Import and use routes
+app.use('/api', authRoutes); // Handles /api/register, /api/login, etc.
+app.use('/api', coinRoutes); // Handles /api/coins, /api/me, /api/promoted, etc.
+app.use('/api/payments', paymentRoutes); // Handles /api/payments/create-charge
+app.use('/payments', paymentRoutes); // Handles /payments/create-charge for Netlify Functions
+app.use('/api/banners', bannerRoutes); // Handles /api/banners
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -275,16 +261,14 @@ app.use((req, res) => {
   res.status(404).json({ 
     message: `Route ${req.originalFunctionPath} not found`,
     availableEndpoints: [
-      '/.netlify/functions/api',
-      '/.netlify/functions/api/health',
-      '/.netlify/functions/api/news',
-      '/.netlify/functions/api/coins'
-    ],
-    availableRedirects: [
       '/api',
-      '/api/health', 
+      '/api/health',
       '/api/news',
-      '/api/coins'
+      '/api/coins',
+      '/api/banners',
+      '/api/payments/create-charge',
+      '/api/register',
+      '/api/login'
     ]
   });
 });
@@ -294,7 +278,6 @@ const handler = serverless(app);
 
 // Wrap the handler to add timeout protection
 module.exports.handler = async (event, context) => {
-  // Set timeout to 25 seconds to avoid Netlify's 30 second timeout
   context.callbackWaitsForEmptyEventLoop = false;
   
   const timeoutPromise = new Promise((_, reject) => {
